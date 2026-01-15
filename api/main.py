@@ -5,36 +5,22 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 
-# ----------------------------
-# Paths / storage
-# ----------------------------
-BASE_DIR = Path(__file__).resolve().parent            # .../api
+# ---------------- Paths ----------------
+BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 WEBAPP_DIR = BASE_DIR / "webapp"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
-LISTINGS_PATH = DATA_DIR / "listings.json"
-
-# create empty listings file if not exists
-if not LISTINGS_PATH.exists():
-    LISTINGS_PATH.write_text("[]", encoding="utf-8")
+LISTINGS_PATH = DATA_DIR / "listings.json"   # <-- ВАЖНО: должен быть listings.json (не .txt)
 
 
-# ----------------------------
-# Env
-# ----------------------------
-ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "change-me")  # set in Railway Variables
-
-
-# ----------------------------
-# App
-# ----------------------------
+# ---------------- App ----------------
 app = FastAPI(title="Real Estate API")
 
 app.add_middleware(
@@ -45,201 +31,95 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# ----------------------------
-# Static webapp
-# ----------------------------
-if not WEBAPP_DIR.exists():
-    # If folder missing, show clear error in logs
-    print(f"[WARN] WEBAPP_DIR not found: {WEBAPP_DIR}")
-
-# serve css/js/images from /webapp/...
-app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR)), name="webapp")
+# Раздаём статику миниаппа
+# /webapp/styles.css, /webapp/app.js, /webapp/index.html
+if WEBAPP_DIR.exists():
+    app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
 
 
-@app.get("/", include_in_schema=False)
-def serve_index():
-    """Mini App must open HTML, not JSON."""
-    index_file = WEBAPP_DIR / "index.html"
-    if not index_file.exists():
-        raise HTTPException(status_code=404, detail=f"index.html not found in {WEBAPP_DIR}")
-    return FileResponse(index_file)
-
-
-# ----------------------------
-# Helpers
-# ----------------------------
-def _read_listings() -> List[Dict[str, Any]]:
-    try:
-        raw = LISTINGS_PATH.read_text(encoding="utf-8").strip()
-        if not raw:
-            return []
-        data = json.loads(raw)
-        if isinstance(data, list):
-            return data
+# ---------------- Helpers ----------------
+def load_listings() -> List[Dict[str, Any]]:
+    if not LISTINGS_PATH.exists():
         return []
+    try:
+        return json.loads(LISTINGS_PATH.read_text(encoding="utf-8"))
     except Exception:
         return []
 
 
-def _write_listings(items: List[Dict[str, Any]]) -> None:
-    LISTINGS_PATH.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+def normalize_str(x: Any) -> str:
+    return str(x).strip() if x is not None else ""
 
 
-def _normalize(s: Optional[str]) -> Optional[str]:
-    if s is None:
-        return None
-    s = str(s).strip()
-    return s if s else None
-
-
-def _as_int(v: Any, default: int = 0) -> int:
-    try:
-        return int(v)
-    except Exception:
-        return default
-
-
-# ----------------------------
-# API
-# ----------------------------
-@app.get("/api/health")
-def health():
+# ---------------- Routes ----------------
+@app.get("/api/status")
+def status():
     return {"status": "ok"}
 
 
-@app.get("/api/filters")
-def filters():
-    """
-    Возвращает доступные значения фильтров из базы (сейчас из listings.json)
-    """
-    items = _read_listings()
-    cities = sorted({i.get("city", "").strip() for i in items if i.get("city")})
-    districts = sorted({i.get("district", "").strip() for i in items if i.get("district")})
-    types_ = sorted({i.get("type", "").strip() for i in items if i.get("type")})
+# чтобы при открытии домена не видеть {"status":"ok"},
+# а сразу открывался миниапп
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/webapp/")
 
-    return {
-        "cities": cities,
-        "districts": districts,
-        "types": types_,
-    }
+
+@app.get("/webapp/", include_in_schema=False)
+def webapp_index():
+    index_path = WEBAPP_DIR / "index.html"
+    if not index_path.exists():
+        return HTMLResponse("<h3>webapp/index.html not found</h3>", status_code=404)
+    return FileResponse(index_path)
 
 
 @app.get("/api/listings")
 def get_listings(
     city: Optional[str] = Query(default=None),
     district: Optional[str] = Query(default=None),
-    type: Optional[str] = Query(default=None),
-    max_price: Optional[int] = Query(default=None, ge=0),
+    type: Optional[str] = Query(default=None, alias="ptype"),
+    max_price: Optional[int] = Query(default=None),
 ):
-    """
-    Получить список объявлений с фильтрами
-    """
-    items = _read_listings()
+    items = load_listings()
 
-    city = _normalize(city)
-    district = _normalize(district)
-    type = _normalize(type)
+    city_n = normalize_str(city).lower() if city else None
+    district_n = normalize_str(district).lower() if district else None
+    type_n = normalize_str(type).lower() if type else None
 
-    result = []
+    out: List[Dict[str, Any]] = []
     for it in items:
-        if city and _normalize(it.get("city")) != city:
+        it_city = normalize_str(it.get("city")).lower()
+        it_district = normalize_str(it.get("district")).lower()
+        it_type = normalize_str(it.get("type")).lower()
+
+        price_val = it.get("price")
+        try:
+            price_int = int(price_val) if price_val is not None else None
+        except Exception:
+            price_int = None
+
+        if city_n and it_city != city_n:
             continue
-        if district and _normalize(it.get("district")) != district:
+        if district_n and it_district != district_n:
             continue
-        if type and _normalize(it.get("type")) != type:
+        if type_n and it_type != type_n:
             continue
-
-        price = _as_int(it.get("price"), default=0)
-        if max_price is not None and price > max_price:
+        if max_price is not None and price_int is not None and price_int > max_price:
             continue
 
-        result.append(it)
+        out.append(it)
 
-    return {"count": len(result), "items": result}
+    return out
 
 
-@app.post("/api/admin/add")
-def admin_add_listing(payload: Dict[str, Any] = Body(...)):
-    """
-    Добавить объявление.
-    Требует ключ: ADMIN_API_KEY
-    Передавать в payload:
-      {
-        "key": "...",
-        "title": "...",
-        "description": "...",
-        "price": 100000,
-        "city": "...",
-        "district": "...",
-        "type": "...",
-        "contact": "t.me/username или телефон",
-        "photos": ["url1", "url2"]  (необязательно)
-      }
-    """
-    key = payload.get("key")
-    if key != ADMIN_API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid ADMIN_API_KEY")
+@app.get("/api/filters")
+def get_filters():
+    items = load_listings()
+    cities = sorted({normalize_str(i.get("city")) for i in items if normalize_str(i.get("city"))})
+    districts = sorted({normalize_str(i.get("district")) for i in items if normalize_str(i.get("district"))})
+    types = sorted({normalize_str(i.get("type")) for i in items if normalize_str(i.get("type"))})
 
-    title = _normalize(payload.get("title"))
-    description = _normalize(payload.get("description"))
-    contact = _normalize(payload.get("contact"))
-    city = _normalize(payload.get("city"))
-    district = _normalize(payload.get("district"))
-    type_ = _normalize(payload.get("type"))
-
-    price = _as_int(payload.get("price"), default=0)
-    if not title or not description or not contact or not city or not type_:
-        raise HTTPException(
-            status_code=400,
-            detail="Required: title, description, contact, city, type",
-        )
-
-    photos = payload.get("photos") or []
-    if not isinstance(photos, list):
-        photos = []
-
-    items = _read_listings()
-    new_id = (max([_as_int(i.get("id"), 0) for i in items]) + 1) if items else 1
-
-    item = {
-        "id": new_id,
-        "title": title,
-        "description": description,
-        "price": price,
-        "city": city,
-        "district": district or "",
-        "type": type_,
-        "contact": contact,
-        "photos": photos,
+    return {
+        "cities": cities,
+        "districts": districts,
+        "types": types,
     }
-
-    items.append(item)
-    _write_listings(items)
-
-    return {"ok": True, "item": item}
-
-
-@app.post("/api/admin/delete")
-def admin_delete_listing(payload: Dict[str, Any] = Body(...)):
-    """
-    Удалить объявление по id.
-    payload: {"key":"...","id":123}
-    """
-    key = payload.get("key")
-    if key != ADMIN_API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid ADMIN_API_KEY")
-
-    del_id = _as_int(payload.get("id"), 0)
-    if del_id <= 0:
-        raise HTTPException(status_code=400, detail="Invalid id")
-
-    items = _read_listings()
-    new_items = [i for i in items if _as_int(i.get("id"), 0) != del_id]
-    if len(new_items) == len(items):
-        raise HTTPException(status_code=404, detail="Not found")
-
-    _write_listings(new_items)
-    return {"ok": True, "deleted_id": del_id}
-
-
