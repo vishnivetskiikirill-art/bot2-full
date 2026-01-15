@@ -134,4 +134,20 @@ def api_deactivate(listing_id: int, api_key: str = Query("")):
             it["is_active"] = False
             _save(items)
             return {"ok": True}
+
     raise HTTPException(status_code=404, detail="not found")
+    from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+# подключаем статику (css, js)
+app.mount(
+    "/static",
+    StaticFiles(directory=BASE_DIR / "webapp"),
+    name="static"
+)
+
+# главная страница Mini App
+@app.get("/", response_class=HTMLResponse)
+async def serve_webapp():
+    html_path = BASE_DIR / "webapp" / "index.html"
+    return html_path.read_text(encoding="utf-8")
