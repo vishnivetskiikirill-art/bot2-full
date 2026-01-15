@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -151,3 +152,4 @@ app.mount(
 async def serve_webapp():
     html_path = BASE_DIR / "webapp" / "index.html"
     return html_path.read_text(encoding="utf-8")
+
