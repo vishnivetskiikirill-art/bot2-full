@@ -1,0 +1,6 @@
+BOT_TOKEN=8539456231:AAHHuGlfmmkaE-HIofEE82zYv75_dUIV8h0
+ADMIN_TELEGRAM_ID=0
+API_BASE=http://127.0.0.1:8000
+ADMIN_API_KEY=change-me
+WEBAPP_URL=https://ТВОЙ_NGROK_ДОМЕН/?ngrok-skip-browser-warning=1
+BOT_USERNAME=your_bot

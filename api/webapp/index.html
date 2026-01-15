@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Catalog</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand" id="ui_title">Catalog</div>
+
+      <div class="lang">
+        <span id="ui_lang_label">Language</span>
+        <select id="langSelect" aria-label="Language">
+          <option value="en">EN</option>
+          <option value="ru">RU</option>
+          <option value="bg">BG</option>
+          <option value="he">HE</option>
+        </select>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="grid">
+        <div class="field">
+          <label id="ui_city_label">City</label>
+          <select id="citySelect"></select>
+        </div>
+
+        <div class="field">
+          <label id="ui_district_label">District</label>
+          <select id="districtSelect"></select>
+        </div>
+
+        <div class="field">
+          <label id="ui_type_label">Type</label>
+          <select id="typeSelect"></select>
+        </div>
+
+        <div class="field">
+          <label id="ui_price_label">Max price (€)</label>
+          <input id="maxPrice" type="number" inputmode="numeric" value="100000" min="0" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="btnReset" class="btn ghost">Reset</button>
+        <button id="btnShow" class="btn primary">Show</button>
+      </div>
+
+      <div class="hint" id="ui_hint"></div>
+    </section>
+
+    <section class="results">
+      <div class="results-head">
+        <div class="h2" id="ui_results_title">Listings</div>
+        <div class="pill" id="ui_count">0</div>
+      </div>
+
+      <div id="cards" class="cards"></div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
