@@ -11,14 +11,34 @@
   <div class="topbar">
   <div class="topbarTitle" id="titleCatalog">Каталог</div>
 
-  <div class="topbarLang">
-    <span id="labelLanguage">Язык</span>
-    <select id="langSelect" class="langSelect">
-      <option>EN</option>
-      <option>RU</option>
-      <option>BG</option>
-      <option>HE</option>
-    </select>
+<div class="card">
+  <div class="filtersGrid">
+    <div>
+      <label id="labelCity" for="city">City</label>
+      <select id="city"></select>
+    </div>
+
+    <div>
+      <label id="labelDistrict" for="district">District</label>
+      <select id="district"></select>
+    </div>
+
+    <div>
+      <label id="labelType" for="type">Type</label>
+      <select id="type"></select>
+    </div>
+
+    <div>
+      <label id="labelMaxPrice" for="maxPrice">Max price (€)</label>
+      <input id="maxPrice" type="number" value="100000" />
+    </div>
+
+    <div class="full">
+      <div class="btnRow">
+        <button id="btnReset" class="btn">Reset</button>
+        <button id="btnShow" class="btn">Show</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -53,4 +73,5 @@
   <script src="/static/app.js"></script>
 </body>
 </html>
+
 
