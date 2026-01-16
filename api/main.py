@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import Depends, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from settings import settings
@@ -17,11 +17,11 @@ from db import engine, SessionLocal
 from models import Base, Property
 from admin import setup_admin
 
-# ---------------- Paths ----------------
+# ---------- Paths ----------
 BASE_DIR = Path(__file__).resolve().parent
 WEBAPP_DIR = BASE_DIR / "webapp"
 
-# ---------------- App ----------------
+# ---------- App ----------
 app = FastAPI(title="Real Estate API")
 
 app.add_middleware(
@@ -32,22 +32,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Для SQLAdmin login session
+# для sqladmin login session
 app.add_middleware(SessionMiddleware, secret_key=settings.SESSION_SECRET)
 
-# Раздаём статику миниаппа: /webapp/index.html, /webapp/app.js, /webapp/styles.css
+# статика миниаппа
 if WEBAPP_DIR.exists():
     app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
 
-# Создаём таблицы при старте (MVP). Потом заменим на Alembic.
+
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    setup_admin(app, engine)
 
-# Подключаем админку
-setup_admin(app, engine)
 
-# ---------------- DB dependency ----------------
 def get_db():
     db = SessionLocal()
     try:
@@ -55,26 +53,29 @@ def get_db():
     finally:
         db.close()
 
-# ---------------- Helpers ----------------
+
 def normalize_str(x: Any) -> str:
     return str(x).strip() if x is not None else ""
 
+
 def property_to_dict(p: Property) -> Dict[str, Any]:
-    # Формат максимально похож на твой старый JSON
     images = sorted(p.images, key=lambda im: (im.sort_order or 0, im.id))
     cover = None
     for im in images:
         if im.is_cover:
             cover = im.url
             break
+    if cover is None and images:
+        cover = images[0].url
+
     return {
         "id": p.id,
         "city": p.city,
         "district": p.district,
         "type": p.type,
-        "price": float(p.price),
-        "area_m2": float(p.area_m2),
-        "rooms": int(p.rooms),
+        "price": float(p.price) if p.price is not None else None,
+        "area_m2": float(p.area_m2) if p.area_m2 is not None else None,
+        "rooms": int(p.rooms) if p.rooms is not None else None,
         "lat": float(p.lat) if p.lat is not None else None,
         "lng": float(p.lng) if p.lng is not None else None,
         "description": p.description,
@@ -84,15 +85,17 @@ def property_to_dict(p: Property) -> Dict[str, Any]:
         "created_at": p.created_at.isoformat() if p.created_at else None,
     }
 
-# ---------------- Routes ----------------
+
 @app.get("/api/status")
 def status():
     return {"status": "ok"}
+
 
 # чтобы при открытии домена сразу открывался миниапп
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/webapp/")
+
 
 @app.get("/webapp/", include_in_schema=False)
 def webapp_index():
@@ -100,6 +103,7 @@ def webapp_index():
     if not index_path.exists():
         return HTMLResponse("<h3>webapp/index.html not found</h3>", status_code=404)
     return FileResponse(index_path)
+
 
 @app.get("/api/listings")
 def get_listings(
@@ -134,9 +138,9 @@ def get_listings(
     items = db.execute(q).scalars().all()
     return [property_to_dict(p) for p in items]
 
+
 @app.get("/api/filters")
 def get_filters(db: Session = Depends(get_db)):
-    # Достаём уникальные значения из БД
     cities = db.execute(
         select(func.distinct(Property.city)).where(Property.city.is_not(None), Property.is_active.is_(True))
     ).scalars().all()
@@ -149,14 +153,8 @@ def get_filters(db: Session = Depends(get_db)):
         select(func.distinct(Property.type)).where(Property.type.is_not(None), Property.is_active.is_(True))
     ).scalars().all()
 
-    # нормализуем и сортируем
-    cities = sorted({normalize_str(x) for x in cities if normalize_str(x)})
-    districts = sorted({normalize_str(x) for x in districts if normalize_str(x)})
-    types = sorted({normalize_str(x) for x in types if normalize_str(x)})
+    cities = sorted(normalize_str(x) for x in cities if normalize_str(x))
+    districts = sorted(normalize_str(x) for x in districts if normalize_str(x))
+    types = sorted(normalize_str(x) for x in types if normalize_str(x))
 
-    return {
-        "cities": cities,
-        "districts": districts,
-        "types": types,
-    }
-
+    return {"cities": cities, "districts": districts, "types": types}
