@@ -1,129 +1,48 @@
-# api/main.py
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 import json
-from pathlib import Path
-from fastapi import FastAPI, Query, Depends
-from sqlalchemy import select, func
-from sqlalchemy.orm import Session
+import os
 
-from db import SessionLocal, engine
-from models import Base, Listing
+app = FastAPI()
 
-app = FastAPI(title="Bot2 API")
+# ---------- CORS ----------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-DATA_PATH = Path(__file__).parent / "data" / "listings.json"
+BASE_DIR = os.path.dirname(__file__)
+DATA_FILE = os.path.join(BASE_DIR, "data", "listings.json")
 
-
-# ---------- DB DEP ----------
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-# ---------- SEED ----------
-def seed_if_empty(db: Session):
-    Base.metadata.create_all(bind=engine)
-
-    count = db.scalar(select(func.count(Listing.id)))
-    if count and count > 0:
-        return
-
-    if not DATA_PATH.exists():
-        return
-
-    items = json.loads(DATA_PATH.read_text(encoding="utf-8"))
-
-    for it in items:
-        db.add(
-            Listing(
-                city=it.get("city", ""),
-                district=it.get("district", ""),
-                type=it.get("type", ""),
-                price=float(it.get("price", 0)),
-
-                area_m2=it.get("area_m2"),
-                rooms=it.get("rooms"),
-                lat=it.get("lat"),
-                lon=it.get("lon"),
-
-                title_i18n=it.get("title_i18n", {}),
-                desc_i18n=it.get("desc_i18n", {}),
-            )
-        )
-    db.commit()
-
-
-@app.on_event("startup")
-def startup():
-    db = SessionLocal()
-    try:
-        seed_if_empty(db)
-    finally:
-        db.close()
-
-
-# ---------- ROUTES ----------
-@app.get("/")
-def root():
-    return {"status": "ok"}
-
-
+# ---------- API ----------
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
 
+@app.get("/api/listings")
+def get_listings():
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 @app.get("/api/filters")
-def filters(
-    lang: str = Query("en"),
-    db: Session = Depends(get_db),
-):
-    rows = db.scalars(select(Listing)).all()
+def get_filters():
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
     return {
-        "cities": sorted({r.city for r in rows}),
-        "districts": sorted({r.district for r in rows}),
-        "types": sorted({r.type for r in rows}),
-        "lang": lang,
+        "cities": sorted({i["city"] for i in data}),
+        "districts": sorted({i["district"] for i in data}),
+        "types": sorted({i["type"] for i in data}),
     }
 
-
-@app.get("/api/listings")
-def listings(
-    lang: str = Query("en"),
-    city: str | None = None,
-    district: str | None = None,
-    type: str | None = None,
-    max_price: float | None = None,
-    db: Session = Depends(get_db),
-):
-    q = select(Listing)
-
-    if city:
-        q = q.where(Listing.city == city)
-    if district:
-        q = q.where(Listing.district == district)
-    if type:
-        q = q.where(Listing.type == type)
-    if max_price is not None:
-        q = q.where(Listing.price <= max_price)
-
-    rows = db.scalars(q).all()
-
-    return [
-        {
-            "id": r.id,
-            "city": r.city,
-            "district": r.district,
-            "type": r.type,
-            "price": r.price,
-            "area_m2": r.area_m2,
-            "rooms": r.rooms,
-            "lat": r.lat,
-            "lon": r.lon,
-            "title": r.title(lang),
-            "description": r.description(lang),
-        }
-        for r in rows
-    ]
+# ---------- MINI APP ----------
+app.mount(
+    "/", 
+    StaticFiles(directory=os.path.join(BASE_DIR, "webapp"), html=True),
+    name="webapp"
+)
