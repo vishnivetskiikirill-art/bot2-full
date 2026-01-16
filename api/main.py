@@ -1,111 +1,76 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Dict, Optional
-
-from fastapi import Depends, FastAPI, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from starlette.middleware.sessions import SessionMiddleware
-from fastapi import FastAPI
 import json
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-app = FastAPI()
+from fastapi import FastAPI, Query
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
-DATA_PATH = Path(__file__).parent / "data" / "listings.json"
-
-@app.get("/api/listings")
-def get_listings():
-    with open(DATA_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
-
-from settings import settings
-from db import engine, SessionLocal
-from models import Base, Property
-from admin import setup_admin
 
 # ---------- Paths ----------
-BASE_DIR = Path(__file__).resolve().parent
-WEBAPP_DIR = BASE_DIR / "webapp"
+BASE_DIR = Path(__file__).resolve().parent          # .../api
+WEBAPP_DIR = BASE_DIR / "webapp"                    # .../api/webapp
+DATA_FILE = BASE_DIR / "data" / "listings.json"     # .../api/data/listings.json
+
 
 # ---------- App ----------
 app = FastAPI(title="Real Estate API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],   # для мини-аппа удобно, потом можно ограничить
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# для sqladmin login session
-app.add_middleware(SessionMiddleware, secret_key=settings.SESSION_SECRET)
 
-# статика миниаппа
+# ---------- Helpers ----------
+def load_listings() -> List[Dict[str, Any]]:
+    """
+    Читает listings.json как список объектов.
+    Если файла нет/битый — возвращает [].
+    """
+    if not DATA_FILE.exists():
+        return []
+
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            # гарантируем что элементы словари
+            return [x for x in data if isinstance(x, dict)]
+        return []
+    except Exception:
+        return []
+
+
+def norm(s: Optional[str]) -> str:
+    return (s or "").strip()
+
+
+def uniq_sorted(values: List[str]) -> List[str]:
+    cleaned = [v.strip() for v in values if v and v.strip()]
+    return sorted(list(set(cleaned)))
+
+
+# ---------- Static webapp ----------
 if WEBAPP_DIR.exists():
     app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
 
 
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
-    setup_admin(app, engine)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-def normalize_str(x: Any) -> str:
-    return str(x).strip() if x is not None else ""
-
-
-def property_to_dict(p: Property) -> Dict[str, Any]:
-    images = sorted(p.images, key=lambda im: (im.sort_order or 0, im.id))
-    cover = None
-    for im in images:
-        if im.is_cover:
-            cover = im.url
-            break
-    if cover is None and images:
-        cover = images[0].url
-
-    return {
-        "id": p.id,
-        "city": p.city,
-        "district": p.district,
-        "type": p.type,
-        "price": float(p.price) if p.price is not None else None,
-        "area_m2": float(p.area_m2) if p.area_m2 is not None else None,
-        "rooms": int(p.rooms) if p.rooms is not None else None,
-        "lat": float(p.lat) if p.lat is not None else None,
-        "lng": float(p.lng) if p.lng is not None else None,
-        "description": p.description,
-        "is_active": bool(p.is_active),
-        "images": [im.url for im in images],
-        "cover": cover,
-        "created_at": p.created_at.isoformat() if p.created_at else None,
-    }
-
-
+# ---------- Routes ----------
 @app.get("/api/status")
 def status():
     return {"status": "ok"}
 
 
-# чтобы при открытии домена сразу открывался миниапп
 @app.get("/", include_in_schema=False)
 def root():
+    # чтобы при открытии домена сразу открывался мини-апп
     return RedirectResponse(url="/webapp/")
 
 
@@ -119,55 +84,50 @@ def webapp_index():
 
 @app.get("/api/listings")
 def get_listings(
-    db: Session = Depends(get_db),
     city: Optional[str] = Query(default=None),
     district: Optional[str] = Query(default=None),
     type: Optional[str] = Query(default=None, alias="type"),
     max_price: Optional[float] = Query(default=None),
-    min_price: Optional[float] = Query(default=None),
-    rooms: Optional[int] = Query(default=None),
     limit: int = Query(default=200, ge=1, le=1000),
 ):
-    q = select(Property).options(selectinload(Property.images)).where(Property.is_active.is_(True))
+    items = load_listings()
 
-    if city:
-        q = q.where(func.lower(Property.city) == normalize_str(city).lower())
-    if district:
-        q = q.where(func.lower(Property.district) == normalize_str(district).lower())
-    if type:
-        q = q.where(func.lower(Property.type) == normalize_str(type).lower())
+    city_n = norm(city).lower()
+    district_n = norm(district).lower()
+    type_n = norm(type).lower()
 
-    if min_price is not None:
-        q = q.where(Property.price >= min_price)
-    if max_price is not None:
-        q = q.where(Property.price <= max_price)
+    def match(item: Dict[str, Any]) -> bool:
+        if city_n:
+            if norm(item.get("city")).lower() != city_n:
+                return False
+        if district_n:
+            if norm(item.get("district")).lower() != district_n:
+                return False
+        if type_n:
+            if norm(item.get("type")).lower() != type_n:
+                return False
+        if max_price is not None:
+            try:
+                price = float(item.get("price", 0))
+            except Exception:
+                price = 0.0
+            if price > float(max_price):
+                return False
+        return True
 
-    if rooms is not None:
-        q = q.where(Property.rooms == rooms)
-
-    q = q.order_by(Property.id.desc()).limit(limit)
-
-    items = db.execute(q).scalars().all()
-    return [property_to_dict(p) for p in items]
+    filtered = [x for x in items if match(x)]
+    return filtered[:limit]
 
 
 @app.get("/api/filters")
-def get_filters(db: Session = Depends(get_db)):
-    cities = db.execute(
-        select(func.distinct(Property.city)).where(Property.city.is_not(None), Property.is_active.is_(True))
-    ).scalars().all()
+def get_filters():
+    items = load_listings()
+    cities = uniq_sorted([str(x.get("city", "")).strip() for x in items])
+    districts = uniq_sorted([str(x.get("district", "")).strip() for x in items])
+    types = uniq_sorted([str(x.get("type", "")).strip() for x in items])
 
-    districts = db.execute(
-        select(func.distinct(Property.district)).where(Property.district.is_not(None), Property.is_active.is_(True))
-    ).scalars().all()
-
-    types = db.execute(
-        select(func.distinct(Property.type)).where(Property.type.is_not(None), Property.is_active.is_(True))
-    ).scalars().all()
-
-    cities = sorted(normalize_str(x) for x in cities if normalize_str(x))
-    districts = sorted(normalize_str(x) for x in districts if normalize_str(x))
-    types = sorted(normalize_str(x) for x in types if normalize_str(x))
-
-    return {"cities": cities, "districts": districts, "types": types}
-
+    return {
+        "cities": cities,
+        "districts": districts,
+        "types": types,
+    }
