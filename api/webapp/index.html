@@ -8,20 +8,19 @@
 </head>
 
 <body>
-  <div class="container">
-    <div class="headerRow">
-      <h1 id="titleCatalog">Catalog</h1>
+  <div class="topbar">
+  <div class="topbarTitle" id="titleCatalog">Каталог</div>
 
-      <div class="langBox">
-        <span id="labelLanguage">Language</span>
-        <select id="langSelect">
-          <option>EN</option>
-          <option>RU</option>
-          <option>BG</option>
-          <option>HE</option>
-        </select>
-      </div>
-    </div>
+  <div class="topbarLang">
+    <span id="labelLanguage">Язык</span>
+    <select id="langSelect" class="langSelect">
+      <option>EN</option>
+      <option>RU</option>
+      <option>BG</option>
+      <option>HE</option>
+    </select>
+  </div>
+</div>
 
     <div class="card">
       <label id="labelCity" for="city">City</label>
@@ -54,3 +53,4 @@
   <script src="/static/app.js"></script>
 </body>
 </html>
+
