@@ -10,14 +10,12 @@
 </head>
 <body>
   <div class="container">
-
-    <!-- TOPBAR -->
     <div class="topbar">
       <div class="topbarTitle" id="titleCatalog">Catalog</div>
 
-      <div class="topbarLang">
-        <span id="labelLanguage">Language</span>
-        <select id="langSelect" class="langSelect">
+      <div class="langBox">
+        <div class="label" id="labelLanguage">Language</div>
+        <select id="langSelect" class="select small">
           <option value="en">EN</option>
           <option value="ru">RU</option>
           <option value="bg">BG</option>
@@ -26,46 +24,39 @@
       </div>
     </div>
 
-    <!-- FILTERS -->
-    <div class="card">
-      <div class="filtersGrid">
-        <div>
-          <label id="labelCity" for="city">City</label>
-          <select id="city"></select>
-        </div>
+    <div class="panel card">
+      <div class="field">
+        <div class="label" id="labelCity">City</div>
+        <select id="city" class="select"></select>
+      </div>
 
-        <div>
-          <label id="labelDistrict" for="district">District</label>
-          <select id="district"></select>
-        </div>
+      <div class="field">
+        <div class="label" id="labelDistrict">District</div>
+        <select id="district" class="select"></select>
+      </div>
 
-        <div>
-          <label id="labelType" for="type">Type</label>
-          <select id="type"></select>
-        </div>
+      <div class="field">
+        <div class="label" id="labelType">Type</div>
+        <select id="type" class="select"></select>
+      </div>
 
-        <div>
-          <label id="labelMaxPrice" for="maxPrice">Max price (€)</label>
-          <input id="maxPrice" type="number" value="100000" />
-        </div>
+      <div class="field">
+        <div class="label" id="labelMaxPrice">Max price (€)</div>
+        <input id="maxPrice" class="input" type="number" min="0" value="100000" />
+      </div>
 
-        <div class="full">
-          <div class="btnRow">
-            <button id="btnReset" class="btn">Reset</button>
-            <button id="btnShow" class="btn">Show</button>
-          </div>
-        </div>
+      <div class="btnRow">
+        <button id="btnReset" class="btn" type="button">Reset</button>
+        <button id="btnShow" class="btn primary" type="button">Show</button>
       </div>
     </div>
 
-    <!-- LIST HEADER -->
-    <div class="listHeader">
-      <h2 id="listingsTitle">Listings</h2>
+    <div class="sectionHeader">
+      <div class="sectionTitle" id="labelListings">Listings</div>
       <div class="badge" id="listingsCount">0</div>
     </div>
 
-    <!-- LIST -->
-    <div id="listings"></div>
+    <div id="listings" class="list"></div>
   </div>
 
   <script src="/static/i18.js"></script>
