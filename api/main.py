@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import json
 import os
@@ -15,11 +14,11 @@ app.add_middleware(
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-WEBAPP_DIR = os.path.join(BASE_DIR, "webapp")
-DATA_DIR = os.path.join(BASE_DIR, "data")
+WEBAPP = os.path.join(BASE_DIR, "webapp")
+DATA = os.path.join(BASE_DIR, "data")
 
 
-# --- API (сначала!) ---
+# ---------- API ----------
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
@@ -27,27 +26,31 @@ def health():
 
 @app.get("/api/listings")
 def listings():
-    with open(os.path.join(DATA_DIR, "listings.json"), "r", encoding="utf-8") as f:
+    with open(os.path.join(DATA, "listings.json"), encoding="utf-8") as f:
         return json.load(f)
 
 
 @app.get("/api/filters")
 def filters():
-    with open(os.path.join(DATA_DIR, "listings.json"), "r", encoding="utf-8") as f:
-        data = json.load(f)
+    with open(os.path.join(DATA, "listings.json"), encoding="utf-8") as f:
+        items = json.load(f)
 
     return {
-        "cities": sorted({x.get("city") for x in data if x.get("city")}),
-        "districts": sorted({x.get("district") for x in data if x.get("district")}),
-        "types": sorted({x.get("type") for x in data if x.get("type")}),
+        "cities": sorted({i["city"] for i in items}),
+        "districts": sorted({i["district"] for i in items}),
+        "types": sorted({i["type"] for i in items}),
     }
 
 
-# --- WEBAPP (после API): "/" всегда отдаёт index.html ---
+# ---------- WEBAPP ----------
 @app.get("/")
-def root():
-    return FileResponse(os.path.join(WEBAPP_DIR, "index.html"))
+def index():
+    return FileResponse(os.path.join(WEBAPP, "index.html"))
 
 
-# Отдаём статику как обычные файлы: /app.js, /style.css, /i18n.js и т.д.
-app.mount("/", StaticFiles(directory=WEBAPP_DIR, html=True), name="webapp")
+@app.get("/{file_name}")
+def static_files(file_name: str):
+    file_path = os.path.join(WEBAPP, file_name)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return {"detail": "Not Found"}
