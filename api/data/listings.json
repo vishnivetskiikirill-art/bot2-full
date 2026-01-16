@@ -1,4 +1,46 @@
 [
-  {"city":"Limassol","district":"Germasogeia","type":"Apartment","price":120000,"title":"Nice flat"},
-  {"city":"Paphos","district":"Kato Paphos","type":"House","price":90000,"title":"House with yard"}
+  {
+    "city": "Limassol",
+    "district": "Germasogeia",
+    "type": "Apartment",
+    "price": 120000,
+    "area_m2": 55,
+    "rooms": 2,
+    "lat": 34.707,
+    "lon": 33.090,
+    "title_i18n": {
+      "en": "Nice flat",
+      "ru": "Хорошая квартира",
+      "he": "דירה נחמדה",
+      "bg": "Хубав апартамент"
+    },
+    "desc_i18n": {
+      "en": "2 rooms, near the sea.",
+      "ru": "2 комнаты, рядом с морем.",
+      "he": "2 חדרים, קרוב לים.",
+      "bg": "2 стаи, близо до морето."
+    }
+  },
+  {
+    "city": "Paphos",
+    "district": "Kato Paphos",
+    "type": "House",
+    "price": 90000,
+    "area_m2": 90,
+    "rooms": 3,
+    "lat": 34.757,
+    "lon": 32.410,
+    "title_i18n": {
+      "en": "House with yard",
+      "ru": "Дом с двором",
+      "he": "בית עם חצר",
+      "bg": "Къща с двор"
+    },
+    "desc_i18n": {
+      "en": "Quiet area, good for family.",
+      "ru": "Тихий район, отлично для семьи.",
+      "he": "אזור שקט, מתאים למשפחה.",
+      "bg": "Тих район, добър за семейство."
+    }
+  }
 ]
