@@ -1,36 +1,67 @@
 const tg = window.Telegram?.WebApp;
 if (tg) tg.ready();
 
-const cityEl = document.getElementById("city");
-const districtEl = document.getElementById("district");
-const typeEl = document.getElementById("type");
-const maxPriceEl = document.getElementById("maxPrice");
-const btnReset = document.getElementById("btnReset");
-const btnShow = document.getElementById("btnShow");
-const listingsCountEl = document.getElementById("listingsCount");
-const listingsEl = document.getElementById("listings");
+const API = {
+  status: "/api/status",
+  meta: "/api/meta",
+  listings: "/api/listings",
+};
 
-async function apiGet(path) {
-  const res = await fetch(path, { cache: "no-store" });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json();
-}
+const UI = {
+  en: {
+    catalog: "Catalog",
+    language: "Language",
+    city: "City",
+    district: "District",
+    type: "Type",
+    maxPrice: "Max price (€)",
+    reset: "Reset",
+    show: "Show",
+    listings: "Listings",
+    any: "—",
+    types: { Apartment: "Apartment", House: "House" },
+  },
+  ru: {
+    catalog: "Каталог",
+    language: "Язык",
+    city: "Город",
+    district: "Район",
+    type: "Тип",
+    maxPrice: "Макс. цена (€)",
+    reset: "Сброс",
+    show: "Показать",
+    listings: "Объявления",
+    any: "—",
+    types: { Apartment: "Квартира", House: "Дом" },
+  },
+  bg: {
+    catalog: "Каталог",
+    language: "Език",
+    city: "Град",
+    district: "Район",
+    type: "Тип",
+    maxPrice: "Макс. цена (€)",
+    reset: "Нулиране",
+    show: "Покажи",
+    listings: "Обяви",
+    any: "—",
+    types: { Apartment: "Апартамент", House: "Къща" },
+  },
+  he: {
+    catalog: "קטלוג",
+    language: "שפה",
+    city: "עיר",
+    district: "אזור",
+    type: "סוג",
+    maxPrice: "מחיר מקס׳ (€)",
+    reset: "איפוס",
+    show: "הצג",
+    listings: "מודעות",
+    any: "—",
+    types: { Apartment: "דירה", House: "בית" },
+  },
+};
 
-function fillSelect(selectEl, items) {
-  // очистить и добавить пустой вариант
-  selectEl.innerHTML = "";
-  const empty = document.createElement("option");
-  empty.value = "";
-  empty.textContent = "—";
-  selectEl.appendChild(empty);
-
-  for (const v of items) {
-    const opt = document.createElement("option");
-    opt.value = v;
-    opt.textContent = v;
-    selectEl.appendChild(opt);
-  }
-}
 function detectLang() {
   let lang = localStorage.getItem("lang");
   if (!lang) {
@@ -42,118 +73,171 @@ function detectLang() {
 }
 
 let LANG = detectLang();
+const T = () => UI[LANG] || UI.en;
 
-const UI = {
-  en: { title: "Catalog", lang: "Language", city: "City", district: "District", type: "Type", maxPrice: "Max price (€)", reset: "Reset", show: "Show", listings: "Listings" },
-  ru: { title: "Каталог", lang: "Язык", city: "Город", district: "Район", type: "Тип", maxPrice: "Макс. цена (€)", reset: "Сброс", show: "Показать", listings: "Объявления" },
-  bg: { title: "Каталог", lang: "Език", city: "Град", district: "Район", type: "Тип", maxPrice: "Макс. цена (€)", reset: "Нулиране", show: "Покажи", listings: "Обяви" },
-  he: { title: "קטלוג", lang: "שפה", city: "עיר", district: "אזור", type: "סוג", maxPrice: "מחיר מקס׳ (€)", reset: "איפוס", show: "הצג", listings: "מודעות" },
-};
+// элементы
+const langSelect = document.getElementById("langSelect");
+const cityEl = document.getElementById("city");
+const districtEl = document.getElementById("district");
+const typeEl = document.getElementById("type");
+const maxPriceEl = document.getElementById("maxPrice");
+const btnReset = document.getElementById("btnReset");
+const btnShow = document.getElementById("btnShow");
+const listingsCountEl = document.getElementById("listingsCount");
+const listingsEl = document.getElementById("listings");
 
-function applyUILang() {
-  const t = UI[LANG] || UI.en;
+// заголовки/лейблы
+const titleCatalog = document.getElementById("titleCatalog");
+const labelLanguage = document.getElementById("labelLanguage");
+const lblCity = document.getElementById("lblCity");
+const lblDistrict = document.getElementById("lblDistrict");
+const lblType = document.getElementById("lblType");
+const lblMaxPrice = document.getElementById("lblMaxPrice");
+const lblListings = document.getElementById("lblListings");
 
-  const title = document.getElementById("catalogTitle");
-  const langLabel = document.getElementById("langLabel");
-  if (title) title.textContent = t.title;
-  if (langLabel) langLabel.textContent = t.lang;
-
-  // если у тебя есть подписи с такими id — они тоже обновятся
-  const cityLbl = document.getElementById("cityLabel");
-  const distLbl = document.getElementById("districtLabel");
-  const typeLbl = document.getElementById("typeLabel");
-  const priceLbl = document.getElementById("maxPriceLabel");
-  const resetBtn = document.getElementById("resetBtn");
-  const showBtn = document.getElementById("showBtn");
-  const listingsTitle = document.getElementById("listingsTitle");
-
-  if (cityLbl) cityLbl.textContent = t.city;
-  if (distLbl) distLbl.textContent = t.district;
-  if (typeLbl) typeLbl.textContent = t.type;
-  if (priceLbl) priceLbl.textContent = t.maxPrice;
-  if (resetBtn) resetBtn.textContent = t.reset;
-  if (showBtn) showBtn.textContent = t.show;
-  if (listingsTitle) listingsTitle.textContent = t.listings;
+async function apiGet(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const langSelect = document.getElementById("langSelect");
-  if (langSelect) {
-    langSelect.value = LANG;
-    langSelect.addEventListener("change", () => {
-      localStorage.setItem("lang", langSelect.value);
-      location.reload();
-    });
+function fillSelect(selectEl, items) {
+  selectEl.innerHTML = "";
+  const optEmpty = document.createElement("option");
+  optEmpty.value = "";
+  optEmpty.textContent = T().any;
+  selectEl.appendChild(optEmpty);
+
+  for (const v of items) {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    selectEl.appendChild(opt);
   }
-  applyUILang();
-});
+}
+
+function applyLangUI() {
+  const t = T();
+
+  // RTL для иврита
+  document.documentElement.dir = (LANG === "he") ? "rtl" : "ltr";
+
+  titleCatalog.textContent = t.catalog;
+  labelLanguage.textContent = t.language;
+  lblCity.textContent = t.city;
+  lblDistrict.textContent = t.district;
+  lblType.textContent = t.type;
+  lblMaxPrice.textContent = t.maxPrice;
+  btnReset.textContent = t.reset;
+  btnShow.textContent = t.show;
+  lblListings.textContent = t.listings;
+
+  // чтобы в селектах "—" тоже был правильный язык:
+  // просто перезаполним селекты текущими значениями
+}
+
+function translateType(typeValue) {
+  const dict = T().types || {};
+  return dict[typeValue] || typeValue || "";
+}
+
 function renderListings(items) {
   listingsEl.innerHTML = "";
   listingsCountEl.textContent = String(items.length);
 
-  if (!items.length) {
-    listingsEl.innerHTML = `<div class="empty">No listings</div>`;
-    return;
-  }
-
-  for (const x of items) {
-    const title = x.title ?? "(no title)";
-    const city = x.city ?? "";
-    const district = x.district ?? "";
-    const type = x.type ?? "";
-    const price = x.price ?? "";
-
+  for (const it of items) {
     const card = document.createElement("div");
     card.className = "card";
-    card.innerHTML = `
-      <div class="card-title">${title}</div>
-      <div class="card-meta">${city}${district ? " • " + district : ""}${type ? " • " + type : ""}</div>
-      <div class="card-price">€ ${price}</div>
-    `;
+
+    const title = document.createElement("div");
+    title.style.fontSize = "18px";
+    title.style.marginBottom = "6px";
+    title.textContent = it.title || "";
+
+    const meta = document.createElement("div");
+    meta.className = "muted";
+    meta.textContent = `${it.city || ""} • ${it.district || ""} • ${translateType(it.type)}`;
+
+    const price = document.createElement("div");
+    price.style.marginTop = "6px";
+    price.textContent = `€ ${it.price ?? ""}`;
+
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(price);
+
     listingsEl.appendChild(card);
   }
 }
 
-async function loadFilters() {
-  const data = await apiGet("/api/filters");
-  fillSelect(cityEl, data.cities || []);
-  fillSelect(districtEl, data.districts || []);
-  fillSelect(typeEl, data.types || []);
+function getFilters() {
+  return {
+    city: cityEl.value || null,
+    district: districtEl.value || null,
+    type: typeEl.value || null,
+    max_price: maxPriceEl.value ? Number(maxPriceEl.value) : null,
+  };
 }
 
-async function loadListings() {
-  const params = new URLSearchParams();
-
-  if (cityEl.value) params.set("city", cityEl.value);
-  if (districtEl.value) params.set("district", districtEl.value);
-  if (typeEl.value) params.set("type", typeEl.value);
-
-  const mp = (maxPriceEl.value || "").trim();
-  if (mp) params.set("max_price", mp);
-
-  const data = await apiGet("/api/listings?" + params.toString());
-  renderListings(Array.isArray(data) ? data : []);
+function buildListingsUrl() {
+  const f = getFilters();
+  const qs = new URLSearchParams();
+  if (f.city) qs.set("city", f.city);
+  if (f.district) qs.set("district", f.district);
+  if (f.type) qs.set("type", f.type);
+  if (f.max_price !== null && !Number.isNaN(f.max_price)) qs.set("max_price", String(f.max_price));
+  return `${API.listings}?${qs.toString()}`;
 }
 
-btnReset.addEventListener("click", async () => {
+async function loadMetaAndInitSelects() {
+  const meta = await apiGet(API.meta);
+
+  fillSelect(cityEl, meta.cities || []);
+  fillSelect(districtEl, meta.districts || []);
+  fillSelect(typeEl, meta.types || []);
+
+  // язык селекта
+  langSelect.value = LANG;
+}
+
+async function loadAndRender() {
+  const url = buildListingsUrl();
+  const items = await apiGet(url);
+  renderListings(items);
+}
+
+function resetFilters() {
   cityEl.value = "";
   districtEl.value = "";
   typeEl.value = "";
-  maxPriceEl.value = "";
-  await loadListings();
+  maxPriceEl.value = "100000";
+}
+
+async function init() {
+  // проверка бэка (не обязательно, но полезно)
+  await apiGet(API.status);
+
+  applyLangUI();
+  await loadMetaAndInitSelects();
+  await loadAndRender();
+}
+
+langSelect.addEventListener("change", async () => {
+  LANG = langSelect.value;
+  localStorage.setItem("lang", LANG);
+  applyLangUI();
+  // перезагрузка данных не нужна, просто перерисуем карточки на текущем языке:
+  await loadMetaAndInitSelects();
+  await loadAndRender();
+});
+
+btnReset.addEventListener("click", async () => {
+  resetFilters();
+  await loadAndRender();
 });
 
 btnShow.addEventListener("click", async () => {
-  await loadListings();
+  await loadAndRender();
 });
 
-// старт
-(async function init() {
-  try {
-    await loadFilters();
-    await loadListings();
-  } catch (e) {
-    listingsEl.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
-  }
-})();
-
+document.addEventListener("DOMContentLoaded", init);
