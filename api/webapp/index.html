@@ -2,17 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Catalog</title>
 
   <link rel="stylesheet" href="/static/styles.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-
 <body>
   <div class="container">
 
-    <!-- TOP BAR -->
+    <!-- TOPBAR -->
     <div class="topbar">
       <div class="topbarTitle" id="titleCatalog">Catalog</div>
 
@@ -27,10 +26,9 @@
       </div>
     </div>
 
-    <!-- FILTER CARD -->
+    <!-- FILTERS -->
     <div class="card">
       <div class="filtersGrid">
-
         <div>
           <label id="labelCity" for="city">City</label>
           <select id="city"></select>
@@ -53,11 +51,10 @@
 
         <div class="full">
           <div class="btnRow">
-            <button id="btnReset" class="btn" type="button">Reset</button>
-            <button id="btnShow" class="btn" type="button">Show</button>
+            <button id="btnReset" class="btn">Reset</button>
+            <button id="btnShow" class="btn">Show</button>
           </div>
         </div>
-
       </div>
     </div>
 
@@ -69,9 +66,9 @@
 
     <!-- LIST -->
     <div id="listings"></div>
-
   </div>
 
+  <script src="/static/i18.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
