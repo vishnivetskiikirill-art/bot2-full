@@ -1,8 +1,9 @@
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import json
+from fastapi.staticfiles import StaticFiles
 import os
+import json
 
 app = FastAPI()
 
@@ -14,43 +15,57 @@ app.add_middleware(
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-WEBAPP = os.path.join(BASE_DIR, "webapp")
-DATA = os.path.join(BASE_DIR, "data")
+WEBAPP_DIR = os.path.join(BASE_DIR, "webapp")
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+INDEX_PATH = os.path.join(WEBAPP_DIR, "index.html")
+LISTINGS_PATH = os.path.join(DATA_DIR, "listings.json")
+
+# --- Static files ---
+# Будет доступно:
+# /static/app.js
+# /static/styles.css
+app.mount("/static", StaticFiles(directory=WEBAPP_DIR), name="static")
 
 
-# ---------- API ----------
+# --- WebApp (frontend) ---
+@app.get("/")
+def webapp_index():
+    if not os.path.exists(INDEX_PATH):
+        return JSONResponse(
+            status_code=500,
+            content={"error": "webapp/index.html not found", "expected": INDEX_PATH},
+        )
+    return FileResponse(INDEX_PATH)
+
+
+# --- API ---
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
 
-
 @app.get("/api/listings")
 def listings():
-    with open(os.path.join(DATA, "listings.json"), encoding="utf-8") as f:
+    if not os.path.exists(LISTINGS_PATH):
+        return JSONResponse(
+            status_code=500,
+            content={"error": "data/listings.json not found", "expected": LISTINGS_PATH},
+        )
+    with open(LISTINGS_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
-
 
 @app.get("/api/filters")
 def filters():
-    with open(os.path.join(DATA, "listings.json"), encoding="utf-8") as f:
+    if not os.path.exists(LISTINGS_PATH):
+        return JSONResponse(
+            status_code=500,
+            content={"error": "data/listings.json not found", "expected": LISTINGS_PATH},
+        )
+    with open(LISTINGS_PATH, "r", encoding="utf-8") as f:
         items = json.load(f)
 
-    return {
-        "cities": sorted({i["city"] for i in items}),
-        "districts": sorted({i["district"] for i in items}),
-        "types": sorted({i["type"] for i in items}),
-    }
+    cities = sorted({x.get("city", "") for x in items if x.get("city")})
+    districts = sorted({x.get("district", "") for x in items if x.get("district")})
+    types = sorted({x.get("type", "") for x in items if x.get("type")})
 
-
-# ---------- WEBAPP ----------
-@app.get("/")
-def index():
-    return FileResponse(os.path.join(WEBAPP, "index.html"))
-
-
-@app.get("/{file_name}")
-def static_files(file_name: str):
-    file_path = os.path.join(WEBAPP, file_name)
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    return {"detail": "Not Found"}
+    return {"cities": cities, "districts": districts, "types": types}
