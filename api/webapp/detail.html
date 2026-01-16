@@ -4,33 +4,23 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Detail</title>
+
   <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
   <div class="container">
-    <div class="headerRow">
-      <h1 id="titleDetail">Detail</h1>
-
-      <div class="langBox">
-        <span id="labelLanguage">Language</span>
-        <select id="langSelect">
-          <option>EN</option>
-          <option>RU</option>
-          <option>BG</option>
-          <option>HE</option>
-        </select>
-      </div>
+    <div class="topbar">
+      <div class="topbarTitle" id="detailTitle">Listing</div>
+      <button class="btn" id="btnBack" type="button">← Back</button>
     </div>
 
-    <div class="card">
-      <div class="cardTitle" id="dTitle"></div>
-      <div class="cardMeta" id="dMeta"></div>
-      <div class="cardPrice" id="dPrice"></div>
+    <div id="detailCard" class="card">
+      Loading...
     </div>
-
-    <button id="btnBack" class="btn">← Back</button>
   </div>
 
+  <script src="/static/i18.js"></script>
   <script src="/static/detail.js"></script>
 </body>
 </html>
