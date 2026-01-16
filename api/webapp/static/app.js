@@ -1,66 +1,23 @@
 const tg = window.Telegram?.WebApp;
 if (tg) tg.ready();
 
-const API = {
-  status: "/api/status",
-  meta: "/api/meta",
-  listings: "/api/listings",
-};
+const API_BASE = "/api";
 
-const UI = {
-  en: {
-    catalog: "Catalog",
-    language: "Language",
-    city: "City",
-    district: "District",
-    type: "Type",
-    maxPrice: "Max price (€)",
-    reset: "Reset",
-    show: "Show",
-    listings: "Listings",
-    any: "—",
-    types: { Apartment: "Apartment", House: "House" },
-  },
-  ru: {
-    catalog: "Каталог",
-    language: "Язык",
-    city: "Город",
-    district: "Район",
-    type: "Тип",
-    maxPrice: "Макс. цена (€)",
-    reset: "Сброс",
-    show: "Показать",
-    listings: "Объявления",
-    any: "—",
-    types: { Apartment: "Квартира", House: "Дом" },
-  },
-  bg: {
-    catalog: "Каталог",
-    language: "Език",
-    city: "Град",
-    district: "Район",
-    type: "Тип",
-    maxPrice: "Макс. цена (€)",
-    reset: "Нулиране",
-    show: "Покажи",
-    listings: "Обяви",
-    any: "—",
-    types: { Apartment: "Апартамент", House: "Къща" },
-  },
-  he: {
-    catalog: "קטלוג",
-    language: "שפה",
-    city: "עיר",
-    district: "אזור",
-    type: "סוג",
-    maxPrice: "מחיר מקס׳ (€)",
-    reset: "איפוס",
-    show: "הצג",
-    listings: "מודעות",
-    any: "—",
-    types: { Apartment: "דירה", House: "בית" },
-  },
-};
+const cityEl = document.getElementById("city");
+const districtEl = document.getElementById("district");
+const typeEl = document.getElementById("type");
+const maxPriceEl = document.getElementById("maxPrice");
+const btnReset = document.getElementById("btnReset");
+const btnShow = document.getElementById("btnShow");
+const listingsCountEl = document.getElementById("listingsCount");
+const listingsEl = document.getElementById("listings");
+const langSelect = document.getElementById("langSelect");
+
+async function apiGet(path) {
+  const res = await fetch(path, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
 
 function detectLang() {
   let lang = localStorage.getItem("lang");
@@ -73,40 +30,56 @@ function detectLang() {
 }
 
 let LANG = detectLang();
-const T = () => UI[LANG] || UI.en;
 
-// элементы
-const langSelect = document.getElementById("langSelect");
-const cityEl = document.getElementById("city");
-const districtEl = document.getElementById("district");
-const typeEl = document.getElementById("type");
-const maxPriceEl = document.getElementById("maxPrice");
-const btnReset = document.getElementById("btnReset");
-const btnShow = document.getElementById("btnShow");
-const listingsCountEl = document.getElementById("listingsCount");
-const listingsEl = document.getElementById("listings");
+const UI = {
+  en: { title: "Catalog", lang: "Language", city: "City", district: "District", type: "Type", maxPrice: "Max price (€)", reset: "Reset", show: "Show", listings: "Listings", any: "—" },
+  ru: { title: "Каталог", lang: "Язык", city: "Город", district: "Район", type: "Тип", maxPrice: "Макс. цена (€)", reset: "Сброс", show: "Показать", listings: "Объявления", any: "—" },
+  bg: { title: "Каталог", lang: "Език", city: "Град", district: "Район", type: "Тип", maxPrice: "Макс. цена (€)", reset: "Нулиране", show: "Покажи", listings: "Обяви", any: "—" },
+  he: { title: "קטלוג", lang: "שפה", city: "עיר", district: "אזור", type: "סוג", maxPrice: "מחיר מקס׳ (€)", reset: "איפוס", show: "הצג", listings: "מודעות", any: "—" },
+};
 
-// заголовки/лейблы
-const titleCatalog = document.getElementById("titleCatalog");
-const labelLanguage = document.getElementById("labelLanguage");
-const lblCity = document.getElementById("lblCity");
-const lblDistrict = document.getElementById("lblDistrict");
-const lblType = document.getElementById("lblType");
-const lblMaxPrice = document.getElementById("lblMaxPrice");
-const lblListings = document.getElementById("lblListings");
+const TYPE_TX = {
+  en: { apartment: "Apartment", house: "House" },
+  ru: { apartment: "Квартира", house: "Дом" },
+  bg: { apartment: "Апартамент", house: "Къща" },
+  he: { apartment: "דירה", house: "בית" },
+};
 
-async function apiGet(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json();
+function normalizeType(t) {
+  const v = (t || "").toString().trim().toLowerCase();
+  if (v === "apartment") return "apartment";
+  if (v === "house") return "house";
+  return v;
+}
+
+function tType(value) {
+  const key = normalizeType(value);
+  return (TYPE_TX[LANG] && TYPE_TX[LANG][key]) ? TYPE_TX[LANG][key] : value;
+}
+
+function applyLangToUI() {
+  document.documentElement.dir = (LANG === "he") ? "rtl" : "ltr";
+
+  document.getElementById("titleCatalog").textContent = UI[LANG].title;
+  document.getElementById("labelLanguage").textContent = UI[LANG].lang;
+
+  document.getElementById("labelCity").textContent = UI[LANG].city;
+  document.getElementById("labelDistrict").textContent = UI[LANG].district;
+  document.getElementById("labelType").textContent = UI[LANG].type;
+  document.getElementById("labelMaxPrice").textContent = UI[LANG].maxPrice;
+
+  btnReset.textContent = UI[LANG].reset;
+  btnShow.textContent = UI[LANG].show;
+
+  document.getElementById("listingsTitle").textContent = UI[LANG].listings;
 }
 
 function fillSelect(selectEl, items) {
   selectEl.innerHTML = "";
-  const optEmpty = document.createElement("option");
-  optEmpty.value = "";
-  optEmpty.textContent = T().any;
-  selectEl.appendChild(optEmpty);
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = UI[LANG].any;
+  selectEl.appendChild(empty);
 
   for (const v of items) {
     const opt = document.createElement("option");
@@ -116,97 +89,87 @@ function fillSelect(selectEl, items) {
   }
 }
 
-function applyLangUI() {
-  const t = T();
-
-  // RTL для иврита
-  document.documentElement.dir = (LANG === "he") ? "rtl" : "ltr";
-
-  titleCatalog.textContent = t.catalog;
-  labelLanguage.textContent = t.language;
-  lblCity.textContent = t.city;
-  lblDistrict.textContent = t.district;
-  lblType.textContent = t.type;
-  lblMaxPrice.textContent = t.maxPrice;
-  btnReset.textContent = t.reset;
-  btnShow.textContent = t.show;
-  lblListings.textContent = t.listings;
-
-  // чтобы в селектах "—" тоже был правильный язык:
-  // просто перезаполним селекты текущими значениями
+function getSelected(selectEl) {
+  const v = selectEl.value;
+  return v ? v : null;
 }
 
-function translateType(typeValue) {
-  const dict = T().types || {};
-  return dict[typeValue] || typeValue || "";
+function buildQuery() {
+  const params = new URLSearchParams();
+  const city = getSelected(cityEl);
+  const district = getSelected(districtEl);
+  const type = getSelected(typeEl);
+  const maxPrice = Number(maxPriceEl.value || 0);
+
+  if (city) params.set("city", city);
+  if (district) params.set("district", district);
+  if (type) params.set("type", type);
+  if (maxPrice > 0) params.set("max_price", String(maxPrice));
+
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+function openDetail(id) {
+  // ВАЖНО: роут у нас /detail
+  window.location.href = `/detail?id=${encodeURIComponent(id)}`;
 }
 
 function renderListings(items) {
   listingsEl.innerHTML = "";
+
+  const badge = document.getElementById("listingsCountBadge");
+  if (badge) badge.textContent = String(items.length);
   listingsCountEl.textContent = String(items.length);
 
   for (const it of items) {
     const card = document.createElement("div");
     card.className = "card";
-    card.addEventListener("click", () => {
-  localStorage.setItem("selectedListing", JSON.stringify(item));
-  window.location.href = "detail.html";
-});
+    card.style.cursor = "pointer";
+    card.addEventListener("click", () => openDetail(it.id));
 
-    const title = document.createElement("div");
-    title.style.fontSize = "18px";
-    title.style.marginBottom = "6px";
-    title.textContent = it.title || "";
+    const line1 = document.createElement("div");
+    line1.className = "cardTitle";
+    line1.textContent = it.title || "";
 
-    const meta = document.createElement("div");
-    meta.className = "muted";
-    meta.textContent = `${it.city || ""} • ${it.district || ""} • ${translateType(it.type)}`;
+    const line2 = document.createElement("div");
+    line2.className = "cardMeta";
+    line2.textContent = `${it.city || ""} • ${it.district || ""} • ${tType(it.type)}`;
 
-    const price = document.createElement("div");
-    price.style.marginTop = "6px";
-    price.textContent = `€ ${it.price ?? ""}`;
+    const line3 = document.createElement("div");
+    line3.className = "cardPrice";
+    line3.textContent = `€ ${it.price ?? ""}`;
 
-    card.appendChild(title);
-    card.appendChild(meta);
-    card.appendChild(price);
+    card.appendChild(line1);
+    card.appendChild(line2);
+    card.appendChild(line3);
 
     listingsEl.appendChild(card);
   }
 }
 
-function getFilters() {
-  return {
-    city: cityEl.value || null,
-    district: districtEl.value || null,
-    type: typeEl.value || null,
-    max_price: maxPriceEl.value ? Number(maxPriceEl.value) : null,
-  };
+async function loadFilters() {
+  const f = await apiGet(`${API_BASE}/filters`);
+  fillSelect(cityEl, f.cities || []);
+  fillSelect(districtEl, f.districts || []);
+  fillSelect(typeEl, (f.types || []).map(t => tType(t))); // визуально переведём
+  // но value должен оставаться оригинальным -> пересоберём правильно:
+  typeEl.innerHTML = "";
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = UI[LANG].any;
+  typeEl.appendChild(empty);
+  for (const raw of (f.types || [])) {
+    const opt = document.createElement("option");
+    opt.value = raw;
+    opt.textContent = tType(raw);
+    typeEl.appendChild(opt);
+  }
 }
 
-function buildListingsUrl() {
-  const f = getFilters();
-  const qs = new URLSearchParams();
-  if (f.city) qs.set("city", f.city);
-  if (f.district) qs.set("district", f.district);
-  if (f.type) qs.set("type", f.type);
-  if (f.max_price !== null && !Number.isNaN(f.max_price)) qs.set("max_price", String(f.max_price));
-  return `${API.listings}?${qs.toString()}`;
-}
-
-async function loadMetaAndInitSelects() {
-  const meta = await apiGet(API.meta);
-
-  fillSelect(cityEl, meta.cities || []);
-  fillSelect(districtEl, meta.districts || []);
-  fillSelect(typeEl, meta.types || []);
-
-  // язык селекта
-  langSelect.value = LANG;
-}
-
-async function loadAndRender() {
-  const url = buildListingsUrl();
-  const items = await apiGet(url);
+async function loadListings() {
+  const qs = buildQuery();
+  const items = await apiGet(`${API_BASE}/listings${qs}`);
   renderListings(items);
 }
 
@@ -218,31 +181,31 @@ function resetFilters() {
 }
 
 async function init() {
-  // проверка бэка (не обязательно, но полезно)
-  await apiGet(API.status);
+  // lang select
+  if (langSelect) {
+    langSelect.value = LANG.toUpperCase();
+    langSelect.addEventListener("change", async () => {
+      const v = (langSelect.value || "EN").toLowerCase();
+      LANG = ["ru", "en", "bg", "he"].includes(v) ? v : "en";
+      localStorage.setItem("lang", LANG);
+      applyLangToUI();
+      await loadFilters();
+      await loadListings();
+    });
+  }
 
-  applyLangUI();
-  await loadMetaAndInitSelects();
-  await loadAndRender();
+  applyLangToUI();
+  await loadFilters();
+  await loadListings();
+
+  btnReset.addEventListener("click", async () => {
+    resetFilters();
+    await loadListings();
+  });
+
+  btnShow.addEventListener("click", async () => {
+    await loadListings();
+  });
 }
 
-langSelect.addEventListener("change", async () => {
-  LANG = langSelect.value;
-  localStorage.setItem("lang", LANG);
-  applyLangUI();
-  // перезагрузка данных не нужна, просто перерисуем карточки на текущем языке:
-  await loadMetaAndInitSelects();
-  await loadAndRender();
-});
-
-btnReset.addEventListener("click", async () => {
-  resetFilters();
-  await loadAndRender();
-});
-
-btnShow.addEventListener("click", async () => {
-  await loadAndRender();
-});
-
 document.addEventListener("DOMContentLoaded", init);
-
