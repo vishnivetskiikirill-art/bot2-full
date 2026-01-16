@@ -10,7 +10,20 @@
 <body>
   <div class="wrap">
     <h1>Catalog</h1>
+<!-- Language -->
+<div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin: 12px 0 16px;">
+  <div id="catalogTitle" style="font-size:28px; font-weight:700;">Catalog</div>
 
+  <div style="display:flex; align-items:center; gap:8px;">
+    <div id="langLabel" style="opacity:.8;">Language</div>
+    <select id="langSelect" style="padding:8px 10px; border-radius:10px;">
+      <option value="en">EN</option>
+      <option value="ru">RU</option>
+      <option value="bg">BG</option>
+      <option value="he">HE</option>
+    </select>
+  </div>
+</div>
     <div class="panel">
       <div class="row">
         <div class="field">
@@ -49,3 +62,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+
