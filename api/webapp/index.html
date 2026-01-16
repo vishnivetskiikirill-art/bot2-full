@@ -2,16 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Catalog</title>
-  <link rel="stylesheet" href="/static/styles.css">
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    body { margin:0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial; background:#071a3a; color:#fff; }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 20px; }
+    .top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    h1 { margin: 0 0 12px; font-size: 42px; letter-spacing: .5px; }
+    .panel { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 16px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .row { display:flex; flex-direction:column; gap:6px; }
+    label { opacity:.9; font-size: 14px; }
+    select,input { height: 44px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color:#fff; padding: 0 12px; outline: none; }
+    .btns { display:flex; gap:10px; margin-top: 10px; }
+    button { height: 40px; padding: 0 16px; border-radius: 999px; border: none; cursor: pointer; }
+    #btnReset { background:#eee; }
+    #btnShow { background:#eee; }
+    .listTop { display:flex; align-items:center; justify-content:space-between; margin-top: 18px; }
+    .badge { width: 34px; height: 34px; border-radius: 999px; display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.12); }
+    .card { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 14px; margin-top: 10px; }
+    .muted { opacity:.85; }
+    @media (max-width: 560px){ .grid { grid-template-columns: 1fr; } h1{font-size:36px;} }
+  </style>
 </head>
+
 <body>
-  <div id="app">
-    <h1>Catalog</h1>
-    <div id="content"></div>
+  <div class="wrap">
+    <div class="top">
+      <h1 id="titleCatalog">Catalog</h1>
+
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span id="labelLanguage" class="muted">Language</span>
+        <select id="langSelect">
+          <option value="en">EN</option>
+          <option value="ru">RU</option>
+          <option value="bg">BG</option>
+          <option value="he">HE</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="grid">
+        <div class="row">
+          <label id="lblCity">City</label>
+          <select id="city"></select>
+        </div>
+
+        <div class="row">
+          <label id="lblDistrict">District</label>
+          <select id="district"></select>
+        </div>
+
+        <div class="row">
+          <label id="lblType">Type</label>
+          <select id="type"></select>
+        </div>
+
+        <div class="row">
+          <label id="lblMaxPrice">Max price (€)</label>
+          <input id="maxPrice" type="number" value="100000" />
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="btnReset">Reset</button>
+        <button id="btnShow">Show</button>
+      </div>
+    </div>
+
+    <div class="listTop">
+      <h2 id="lblListings">Listings</h2>
+      <div class="badge" id="listingsCount">0</div>
+    </div>
+
+    <div id="listings"></div>
   </div>
 
+  <!-- Важно: JS грузим через /static -->
   <script src="/static/app.js"></script>
 </body>
 </html>
