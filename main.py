@@ -11,4 +11,5 @@ WEBAPP_DIR = BASE_DIR / "api" / "webapp"
 def health():
     return {"status": "ok"}
 
+# ВАЖНО: монтируем webapp КАК КОРЕНЬ
 app.mount("/", StaticFiles(directory=WEBAPP_DIR, html=True), name="webapp")
