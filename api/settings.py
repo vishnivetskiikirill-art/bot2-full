@@ -1,20 +1,24 @@
-from pydantic_settings import BaseSettings
+import os
+from dataclasses import dataclass
 
 
-class Settings(BaseSettings):
-    # Railway обычно отдаёт DATABASE_URL / или POSTGRES_URL — оставляем DATABASE_URL
+def _get_env(name: str, default: str | None = None) -> str | None:
+    return os.getenv(name, default)
+
+
+@dataclass(frozen=True)
+class Settings:
     DATABASE_URL: str
-
-    # логин/пароль для /admin
-    ADMIN_USER: str = "admin"
-    ADMIN_PASS: str = "admin"
-
-    # секрет для сессий (поставь длинную строку в Railway ENV)
-    SESSION_SECRET: str = "CHANGE_ME_SUPER_LONG_RANDOM"
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    SESSION_SECRET: str
+    WEBAPP_URL: str | None = None
 
 
-settings = Settings()
+DATABASE_URL = _get_env("DATABASE_URL") or _get_env("POSTGRES_URL") or _get_env("DATABASE_PRIVATE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set in Railway Variables")
+
+settings = Settings(
+    DATABASE_URL=DATABASE_URL,
+    SESSION_SECRET=_get_env("SESSION_SECRET", "change-me"),
+    WEBAPP_URL=_get_env("WEBAPP_URL"),
+)
