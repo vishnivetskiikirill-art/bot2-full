@@ -31,7 +31,62 @@ function fillSelect(selectEl, items) {
     selectEl.appendChild(opt);
   }
 }
+function detectLang() {
+  let lang = localStorage.getItem("lang");
+  if (!lang) {
+    const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || "en";
+    lang = ["ru", "en", "bg", "he"].includes(tgLang) ? tgLang : "en";
+    localStorage.setItem("lang", lang);
+  }
+  return lang;
+}
 
+let LANG = detectLang();
+
+const UI = {
+  en: { title: "Catalog", lang: "Language", city: "City", district: "District", type: "Type", maxPrice: "Max price (€)", reset: "Reset", show: "Show", listings: "Listings" },
+  ru: { title: "Каталог", lang: "Язык", city: "Город", district: "Район", type: "Тип", maxPrice: "Макс. цена (€)", reset: "Сброс", show: "Показать", listings: "Объявления" },
+  bg: { title: "Каталог", lang: "Език", city: "Град", district: "Район", type: "Тип", maxPrice: "Макс. цена (€)", reset: "Нулиране", show: "Покажи", listings: "Обяви" },
+  he: { title: "קטלוג", lang: "שפה", city: "עיר", district: "אזור", type: "סוג", maxPrice: "מחיר מקס׳ (€)", reset: "איפוס", show: "הצג", listings: "מודעות" },
+};
+
+function applyUILang() {
+  const t = UI[LANG] || UI.en;
+
+  const title = document.getElementById("catalogTitle");
+  const langLabel = document.getElementById("langLabel");
+  if (title) title.textContent = t.title;
+  if (langLabel) langLabel.textContent = t.lang;
+
+  // если у тебя есть подписи с такими id — они тоже обновятся
+  const cityLbl = document.getElementById("cityLabel");
+  const distLbl = document.getElementById("districtLabel");
+  const typeLbl = document.getElementById("typeLabel");
+  const priceLbl = document.getElementById("maxPriceLabel");
+  const resetBtn = document.getElementById("resetBtn");
+  const showBtn = document.getElementById("showBtn");
+  const listingsTitle = document.getElementById("listingsTitle");
+
+  if (cityLbl) cityLbl.textContent = t.city;
+  if (distLbl) distLbl.textContent = t.district;
+  if (typeLbl) typeLbl.textContent = t.type;
+  if (priceLbl) priceLbl.textContent = t.maxPrice;
+  if (resetBtn) resetBtn.textContent = t.reset;
+  if (showBtn) showBtn.textContent = t.show;
+  if (listingsTitle) listingsTitle.textContent = t.listings;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const langSelect = document.getElementById("langSelect");
+  if (langSelect) {
+    langSelect.value = LANG;
+    langSelect.addEventListener("change", () => {
+      localStorage.setItem("lang", langSelect.value);
+      location.reload();
+    });
+  }
+  applyUILang();
+});
 function renderListings(items) {
   listingsEl.innerHTML = "";
   listingsCountEl.textContent = String(items.length);
@@ -101,3 +156,4 @@ btnShow.addEventListener("click", async () => {
     listingsEl.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
   }
 })();
+
