@@ -3,42 +3,28 @@ if (tg) tg.ready();
 
 const API_BASE = "/api";
 
-const el = (id) => document.getElementById(id);
+const cityEl = document.getElementById("city");
+const districtEl = document.getElementById("district");
+const typeEl = document.getElementById("type");
+const maxPriceEl = document.getElementById("maxPrice");
 
-const langSelect = el("langSelect");
-const cityEl = el("city");
-const districtEl = el("district");
-const typeEl = el("type");
-const maxPriceEl = el("maxPrice");
-const btnReset = el("btnReset");
-const btnShow = el("btnShow");
-const listingsCountEl = el("listingsCount");
-const listingsEl = el("listings");
+const btnReset = document.getElementById("btnReset");
+const btnShow = document.getElementById("btnShow");
 
-const titleCatalogEl = el("titleCatalog");
-const labelLanguageEl = el("labelLanguage");
-const labelCityEl = el("labelCity");
-const labelDistrictEl = el("labelDistrict");
-const labelTypeEl = el("labelType");
-const labelMaxPriceEl = el("labelMaxPrice");
-const listingsTitleEl = el("listingsTitle");
+const listingsCountEl = document.getElementById("listingsCount");
+const listingsEl = document.getElementById("listings");
 
-async function apiGet(path){
-  const res = await fetch(path, { cache: "no-store" });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json();
-}
+const langSelect = document.getElementById("langSelect");
 
-function detectLang(){
+function detectLang() {
   let lang = localStorage.getItem("lang");
   if (!lang) {
-    const tgLang = tg?.initDataUnsafe?.user?.language_code || "en";
+    const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || "en";
     lang = ["ru","en","bg","he"].includes(tgLang) ? tgLang : "en";
     localStorage.setItem("lang", lang);
   }
   return lang;
 }
-
 let LANG = detectLang();
 
 function t(key){
@@ -46,38 +32,23 @@ function t(key){
   return dict[key] ?? (window.I18N.en[key] ?? key);
 }
 
-function applyLang(){
-  // RTL switch
+function setRTL(){
   document.documentElement.setAttribute("dir", window.isRTL(LANG) ? "rtl" : "ltr");
-
-  // UI labels
-  titleCatalogEl.textContent = t("title");
-  labelLanguageEl.textContent = t("language");
-  labelCityEl.textContent = t("city");
-  labelDistrictEl.textContent = t("district");
-  labelTypeEl.textContent = t("type");
-  labelMaxPriceEl.textContent = t("maxPrice");
-  btnReset.textContent = t("reset");
-  btnShow.textContent = t("show");
-  listingsTitleEl.textContent = t("listings");
-
-  // placeholders
-  setPlaceholder(cityEl, t("any"));
-  setPlaceholder(districtEl, t("any"));
-  setPlaceholder(typeEl, t("any"));
 }
 
-function setPlaceholder(selectEl, text){
-  // первая опция — пустая
-  if (!selectEl) return;
+async function apiGet(path) {
+  const res = await fetch(path, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json();
+}
+
+function fillSelect(selectEl, items) {
   selectEl.innerHTML = "";
-  const opt = document.createElement("option");
-  opt.value = "";
-  opt.textContent = text;
-  selectEl.appendChild(opt);
-}
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = t("any");
+  selectEl.appendChild(empty);
 
-function addOptions(selectEl, items){
   for (const v of items) {
     const opt = document.createElement("option");
     opt.value = v;
@@ -86,40 +57,19 @@ function addOptions(selectEl, items){
   }
 }
 
-async function loadFilters(){
-  const data = await apiGet(`${API_BASE}/filters`);
+function applyLanguageUI(){
+  setRTL();
 
-  setPlaceholder(cityEl, t("any"));
-  setPlaceholder(districtEl, t("any"));
-  setPlaceholder(typeEl, t("any"));
+  document.getElementById("titleCatalog").textContent = t("catalog");
+  document.getElementById("labelLanguage").textContent = t("language");
+  document.getElementById("labelCity").textContent = t("city");
+  document.getElementById("labelDistrict").textContent = t("district");
+  document.getElementById("labelType").textContent = t("type");
+  document.getElementById("labelMaxPrice").textContent = t("maxPrice");
+  document.getElementById("labelListings").textContent = t("listings");
 
-  addOptions(cityEl, data.cities || []);
-  addOptions(districtEl, data.districts || []);
-  addOptions(typeEl, data.types || []);
-}
-
-function getCurrentFilters(){
-  const city = cityEl.value || "";
-  const district = districtEl.value || "";
-  const type = typeEl.value || "";
-  const maxPrice = Number(maxPriceEl.value || 0);
-
-  return { city, district, type, maxPrice };
-}
-
-async function loadListings(){
-  const { city, district, type, maxPrice } = getCurrentFilters();
-
-  const params = new URLSearchParams();
-  if (city) params.set("city", city);
-  if (district) params.set("district", district);
-  if (type) params.set("type", type);
-  if (maxPrice) params.set("max_price", String(maxPrice));
-
-  const url = `${API_BASE}/listings?${params.toString()}`;
-  const items = await apiGet(url);
-
-  renderListings(items || []);
+  btnReset.textContent = t("reset");
+  btnShow.textContent = t("show");
 }
 
 function renderListings(items){
@@ -128,40 +78,65 @@ function renderListings(items){
 
   for (const item of items) {
     const card = document.createElement("div");
-    card.className = "card";
-
-    // title (если нет — соберем из меты)
-    const title = (item.title && String(item.title).trim()) ? item.title : "";
+    card.className = "cardItem";
 
     const city = item.city || "";
     const district = item.district || "";
     const typeRaw = item.type || "";
 
-    // локализация типа (Apartment/House)
     let typeShown = typeRaw;
     const typeKey = window.normalizeTypeKey(typeRaw);
     if (typeKey) typeShown = t(typeKey);
 
+    const title = (item.title && String(item.title).trim())
+      ? item.title
+      : (city || t("listings"));
+
     const price = item.price ?? "";
 
-    const titleEl = document.createElement("div");
-    titleEl.className = "cardTitle";
-    titleEl.textContent = title || `${city}${district ? " • " + district : ""}`;
+    card.innerHTML = `
+      <div class="cardTitle">${title}</div>
+      <div class="cardMeta">${city}${district ? " • " + district : ""}${typeShown ? " • " + typeShown : ""}</div>
+      <div class="cardPrice">${price !== "" ? `€ ${price}` : ""}</div>
+    `;
 
-    const metaEl = document.createElement("div");
-    metaEl.className = "cardMeta";
-    metaEl.textContent = `${city}${district ? " • " + district : ""}${typeShown ? " • " + typeShown : ""}`;
-
-    const priceEl = document.createElement("div");
-    priceEl.className = "cardPrice";
-    priceEl.textContent = price !== "" ? `€ ${price}` : "";
-
-    card.appendChild(titleEl);
-    card.appendChild(metaEl);
-    card.appendChild(priceEl);
+    // КЛИК → detail
+    card.addEventListener("click", () => {
+      if (!item.id) return;
+      window.location.href = `/detail.html?id=${encodeURIComponent(item.id)}`;
+    });
 
     listingsEl.appendChild(card);
   }
+}
+
+function getFilters(){
+  return {
+    city: cityEl.value || "",
+    district: districtEl.value || "",
+    type: typeEl.value || "",
+    maxPrice: maxPriceEl.value || ""
+  };
+}
+
+async function loadFilters(){
+  const f = await apiGet(`${API_BASE}/filters`);
+  fillSelect(cityEl, f.cities || []);
+  fillSelect(districtEl, f.districts || []);
+  fillSelect(typeEl, f.types || []);
+}
+
+async function loadListings(){
+  const f = getFilters();
+  const qs = new URLSearchParams();
+  if (f.city) qs.set("city", f.city);
+  if (f.district) qs.set("district", f.district);
+  if (f.type) qs.set("type", f.type);
+  if (f.maxPrice) qs.set("max_price", f.maxPrice);
+
+  const url = `${API_BASE}/listings${qs.toString() ? "?" + qs.toString() : ""}`;
+  const items = await apiGet(url);
+  renderListings(items);
 }
 
 function resetFilters(){
@@ -171,11 +146,17 @@ function resetFilters(){
   maxPriceEl.value = "100000";
 }
 
-function bindEvents(){
+async function init(){
+  langSelect.value = LANG;
+
+  applyLanguageUI();
+  await loadFilters();
+  await loadListings();
+
   langSelect.addEventListener("change", async () => {
     LANG = langSelect.value;
     localStorage.setItem("lang", LANG);
-    applyLang();
+    applyLanguageUI();
     await loadFilters();
     await loadListings();
   });
@@ -188,17 +169,6 @@ function bindEvents(){
   btnShow.addEventListener("click", async () => {
     await loadListings();
   });
-}
-
-async function init(){
-  // set initial select value
-  langSelect.value = LANG;
-
-  applyLang();
-  bindEvents();
-
-  await loadFilters();
-  await loadListings();
 }
 
 document.addEventListener("DOMContentLoaded", init);
