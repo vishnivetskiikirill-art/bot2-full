@@ -1,120 +1,124 @@
-from fastapi import FastAPI, Query, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pathlib import Path
+# api/main.py
 import json
+from pathlib import Path
+from fastapi import FastAPI, Query
+from sqlalchemy import select, func
+from sqlalchemy.orm import Session
 
-app = FastAPI()
+from db import SessionLocal, engine
+from models import Base, Listing
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="Bot2 API")
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_FILE = BASE_DIR / "data" / "listings.json"
-WEBAPP_DIR = BASE_DIR / "webapp"
+DATA_PATH = Path(__file__).parent / "data" / "listings.json"
 
-SUPPORTED_LANGS = {"en", "ru", "bg", "he"}
 
-# 1) Переводы (можешь расширять)
-CITY_I18N = {
-    "Limassol": {"en": "Limassol", "ru": "Лимассол", "bg": "Лимасол", "he": "לימסול"},
-    "Paphos":   {"en": "Paphos",   "ru": "Пафос",    "bg": "Пафос",   "he": "פאפוס"},
-}
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-DISTRICT_I18N = {
-    "Germasogeia": {"en": "Germasogeia", "ru": "Гермасойя", "bg": "Гермасоя", "he": "גרמסוג'יה"},
-    "Kato Paphos": {"en": "Kato Paphos", "ru": "Като Пафос", "bg": "Като Пафос", "he": "קאפו פאפוס"},
-}
 
-TYPE_I18N = {
-    "Apartment": {"en": "Apartment", "ru": "Квартира", "bg": "Апартамент", "he": "דירה"},
-    "House":     {"en": "House",     "ru": "Дом",      "bg": "Къща",       "he": "בית"},
-}
+def seed_if_empty(db: Session):
+    Base.metadata.create_all(bind=engine)
 
-# Если title/description тоже хочешь переводить — добавишь как словарь по id.
-# Пока оставим title как есть (или можешь сделать TITLE_I18N по id).
+    count = db.scalar(select(func.count(Listing.id)))
+    if count and count > 0:
+        return
 
-def get_lang(lang: str | None) -> str:
-    if not lang:
-        return "en"
-    lang = lang.lower()
-    return lang if lang in SUPPORTED_LANGS else "en"
+    if not DATA_PATH.exists():
+        return
 
-def t(mapping: dict, key: str, lang: str) -> str:
-    if not key:
-        return key
-    return mapping.get(key, {}).get(lang) or mapping.get(key, {}).get("en") or key
+    items = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+    for it in items:
+        db.add(
+            Listing(
+                city=it.get("city", ""),
+                district=it.get("district", ""),
+                type=it.get("type", ""),
+                price=float(it.get("price", 0)),
 
-def load_listings() -> list[dict]:
-    if not DATA_FILE.exists():
-        return []
-    return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+                area_m2=it.get("area_m2"),
+                rooms=it.get("rooms"),
+                lat=it.get("lat"),
+                lon=it.get("lon"),
+
+                title_i18n=it.get("title_i18n", {}),
+                desc_i18n=it.get("desc_i18n", {}),
+            )
+        )
+    db.commit()
+
+
+@app.on_event("startup")
+def on_startup():
+    db = SessionLocal()
+    try:
+        seed_if_empty(db)
+    finally:
+        db.close()
+
 
 @app.get("/")
 def root():
     return {"status": "ok"}
 
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/api/filters")
-def api_filters(lang: str | None = Query(default="en")):
-    lang = get_lang(lang)
-    listings = load_listings()
+def filters(db: Session = next(get_db()), lang: str = Query("en")):
+    # Фильтры пока НЕ переводим, просто отдаём значения как есть
+    rows = db.scalars(select(Listing)).all()
+    cities = sorted({r.city for r in rows if r.city})
+    districts = sorted({r.district for r in rows if r.district})
+    types = sorted({r.type for r in rows if r.type})
+    return {"cities": cities, "districts": districts, "types": types, "lang": lang}
 
-    cities = sorted({x.get("city", "") for x in listings if x.get("city")})
-    districts = sorted({x.get("district", "") for x in listings if x.get("district")})
-    types = sorted({x.get("type", "") for x in listings if x.get("type")})
-
-    # ВАЖНО: возвращаем value (сырой) + label (перевод)
-    return {
-        "cities": [{"value": c, "label": t(CITY_I18N, c, lang)} for c in cities],
-        "districts": [{"value": d, "label": t(DISTRICT_I18N, d, lang)} for d in districts],
-        "types": [{"value": tp, "label": t(TYPE_I18N, tp, lang)} for tp in types],
-    }
 
 @app.get("/api/listings")
-def api_listings(
-    lang: str | None = Query(default="en"),
+def listings(
+    db: Session = next(get_db()),
+    lang: str = Query("en"),
     city: str | None = None,
     district: str | None = None,
     type: str | None = None,
-    max_price: int | None = None,
+    max_price: float | None = None,
 ):
-    lang = get_lang(lang)
-    listings = load_listings()
+    q = select(Listing)
 
-    # фильтруем по СЫРЫМ значениям (en), которые хранятся в json
-    def ok(x: dict) -> bool:
-        if city and x.get("city") != city:
-            return False
-        if district and x.get("district") != district:
-            return False
-        if type and x.get("type") != type:
-            return False
-        if max_price is not None:
-            try:
-                if int(x.get("price", 0)) > int(max_price):
-                    return False
-            except Exception:
-                return False
-        return True
+    if city:
+        q = q.where(Listing.city == city)
+    if district:
+        q = q.where(Listing.district == district)
+    if type:
+        q = q.where(Listing.type == type)
+    if max_price is not None:
+        q = q.where(Listing.price <= max_price)
 
-    filtered = [x for x in listings if ok(x)]
+    rows = db.scalars(q).all()
 
-    # добавляем label-поля для отображения на выбранном языке
-    out = []
-    for x in filtered:
-        item = dict(x)
-        item["city_label"] = t(CITY_I18N, item.get("city", ""), lang)
-        item["district_label"] = t(DISTRICT_I18N, item.get("district", ""), lang)
-        item["type_label"] = t(TYPE_I18N, item.get("type", ""), lang)
-        out.append(item)
+    # ВАЖНО: title/description отдаем уже локализованными
+    return [
+        {
+            "id": r.id,
+            "city": r.city,
+            "district": r.district,
+            "type": r.type,
+            "price": r.price,
 
-    return out
+            "area_m2": r.area_m2,
+            "rooms": r.rooms,
+            "lat": r.lat,
+            "lon": r.lon,
 
-# отдаём фронт мини-аппа
-if WEBAPP_DIR.exists():
-    app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
+            "title": r.title(lang),
+            "description": r.description(lang),
+        }
+        for r in rows
+    ]
