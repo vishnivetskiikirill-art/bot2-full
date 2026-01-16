@@ -2,60 +2,76 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Catalog</title>
+
   <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
 <body>
-  <div class="topbar">
-  <div class="topbarTitle" id="titleCatalog">Каталог</div>
+  <div class="container">
 
-<div class="topbar">
-  <div class="topbarTitle" id="titleCatalog">Каталог</div>
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div class="topbarTitle" id="titleCatalog">Catalog</div>
 
-  <div class="topbarLang">
-    <span id="labelLanguage">Язык</span>
-    <select id="langSelect" class="langSelect">
-      <option>EN</option>
-      <option>RU</option>
-      <option>BG</option>
-      <option>HE</option>
-    </select>
-  </div>
-</div>
-
-    <div class="card">
-      <label id="labelCity" for="city">City</label>
-      <select id="city"></select>
-
-      <label id="labelDistrict" for="district">District</label>
-      <select id="district"></select>
-
-      <label id="labelType" for="type">Type</label>
-      <select id="type"></select>
-
-      <label id="labelMaxPrice" for="maxPrice">Max price (€)</label>
-      <input id="maxPrice" type="number" value="100000" />
-
-      <div class="btnRow">
-        <button id="btnReset" class="btn">Reset</button>
-        <button id="btnShow" class="btn">Show</button>
+      <div class="topbarLang">
+        <span id="labelLanguage">Language</span>
+        <select id="langSelect" class="langSelect">
+          <option value="en">EN</option>
+          <option value="ru">RU</option>
+          <option value="bg">BG</option>
+          <option value="he">HE</option>
+        </select>
       </div>
     </div>
 
-    <div class="listHeader">
-      <h2 id="listingsTitle">Listings</h2>
-      <div id="listingsCountBadge" class="badge">0</div>
+    <!-- FILTER CARD -->
+    <div class="card">
+      <div class="filtersGrid">
+
+        <div>
+          <label id="labelCity" for="city">City</label>
+          <select id="city"></select>
+        </div>
+
+        <div>
+          <label id="labelDistrict" for="district">District</label>
+          <select id="district"></select>
+        </div>
+
+        <div>
+          <label id="labelType" for="type">Type</label>
+          <select id="type"></select>
+        </div>
+
+        <div>
+          <label id="labelMaxPrice" for="maxPrice">Max price (€)</label>
+          <input id="maxPrice" type="number" value="100000" />
+        </div>
+
+        <div class="full">
+          <div class="btnRow">
+            <button id="btnReset" class="btn" type="button">Reset</button>
+            <button id="btnShow" class="btn" type="button">Show</button>
+          </div>
+        </div>
+
+      </div>
     </div>
 
-    <div id="listingsCount" style="display:none">0</div>
+    <!-- LIST HEADER -->
+    <div class="listHeader">
+      <h2 id="listingsTitle">Listings</h2>
+      <div class="badge" id="listingsCount">0</div>
+    </div>
+
+    <!-- LIST -->
     <div id="listings"></div>
+
   </div>
 
   <script src="/static/app.js"></script>
 </body>
 </html>
-
-
-
