@@ -148,6 +148,10 @@ function renderListings(items) {
   for (const it of items) {
     const card = document.createElement("div");
     card.className = "card";
+    card.addEventListener("click", () => {
+  localStorage.setItem("selectedListing", JSON.stringify(item));
+  window.location.href = "detail.html";
+});
 
     const title = document.createElement("div");
     title.style.fontSize = "18px";
@@ -241,3 +245,4 @@ btnShow.addEventListener("click", async () => {
 });
 
 document.addEventListener("DOMContentLoaded", init);
+
