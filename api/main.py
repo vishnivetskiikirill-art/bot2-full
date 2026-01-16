@@ -1,57 +1,71 @@
-import os
-import json
-from fastapi import FastAPI, Query
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-WEBAPP_DIR = os.path.join(BASE_DIR, "webapp")
-DATA_FILE = os.path.join(BASE_DIR, "data", "listings.json")
+from pathlib import Path
+import json
 
 app = FastAPI()
 
-# static: api/webapp/static/*
-app.mount(
-    "/static",
-    StaticFiles(directory=os.path.join(WEBAPP_DIR, "static")),
-    name="static",
-)
+BASE_DIR = Path(__file__).resolve().parent
+WEBAPP_DIR = BASE_DIR / "webapp"
+STATIC_DIR = WEBAPP_DIR / "static"
+DATA_FILE = BASE_DIR / "data" / "listings.json"
 
-def load_listings():
-    if not os.path.exists(DATA_FILE):
+# папка static обязана существовать
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+def load_listings() -> list[dict]:
+    if not DATA_FILE.exists():
         return []
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    # добавим id, чтобы было куда кликать
-    out = []
-    for i, item in enumerate(data, start=1):
-        x = dict(item)
-        x["id"] = i
-        out.append(x)
-    return out
+
+    data = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        return []
+
+    # гарантируем id (если его нет в listings.json)
+    for i, item in enumerate(data):
+        if isinstance(item, dict) and "id" not in item:
+            item["id"] = i + 1
+    return data
+
+
+@app.get("/")
+def index():
+    return FileResponse(str(WEBAPP_DIR / "index.html"))
+
+
+@app.get("/detail.html")
+def detail_page():
+    return FileResponse(str(WEBAPP_DIR / "detail.html"))
+
 
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
 
-@app.get("/")
-def index_page():
-    return FileResponse(os.path.join(WEBAPP_DIR, "index.html"))
 
-@app.get("/detail")
-def detail_page():
-    return FileResponse(os.path.join(WEBAPP_DIR, "detail.html"))
+@app.get("/api/filters")
+def filters():
+    items = load_listings()
+
+    cities = sorted({x.get("city") for x in items if x.get("city")})
+    districts = sorted({x.get("district") for x in items if x.get("district")})
+    types = sorted({x.get("type") for x in items if x.get("type")})
+
+    return {"cities": cities, "districts": districts, "types": types}
+
 
 @app.get("/api/listings")
-def api_listings(
+def listings(
     city: str | None = None,
     district: str | None = None,
     type: str | None = None,
-    max_price: int | None = None,
+    max_price: int | None = Query(default=None, ge=0),
 ):
     items = load_listings()
 
-    def ok(x):
+    def ok(x: dict) -> bool:
         if city and x.get("city") != city:
             return False
         if district and x.get("district") != district:
@@ -59,27 +73,21 @@ def api_listings(
         if type and x.get("type") != type:
             return False
         if max_price is not None:
-            try:
-                if int(x.get("price", 0)) > int(max_price):
-                    return False
-            except Exception:
+            price = int(x.get("price") or 0)
+            if price > max_price:
                 return False
         return True
 
-    return JSONResponse([x for x in items if ok(x)])
+    return [x for x in items if ok(x)]
+
 
 @app.get("/api/listings/{listing_id}")
-def api_listing_detail(listing_id: int):
+def listing_detail(listing_id: int):
     items = load_listings()
     for x in items:
-        if x.get("id") == listing_id:
-            return JSONResponse(x)
-    return JSONResponse({"detail": "Not Found"}, status_code=404)
-
-@app.get("/api/filters")
-def api_filters():
-    items = load_listings()
-    cities = sorted({x.get("city") for x in items if x.get("city")})
-    districts = sorted({x.get("district") for x in items if x.get("district")})
-    types = sorted({x.get("type") for x in items if x.get("type")})
-    return {"cities": cities, "districts": districts, "types": types}
+        try:
+            if int(x.get("id")) == listing_id:
+                return x
+        except Exception:
+            continue
+    raise HTTPException(status_code=404, detail="Listing not found")
