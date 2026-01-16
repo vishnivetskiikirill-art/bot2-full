@@ -3,99 +3,73 @@ if (tg) tg.ready();
 
 const API_BASE = "/api";
 
-const UI = {
-  en: { title: "Detail", back: "← Back", metaSep: " • " },
-  ru: { title: "Детали", back: "← Назад", metaSep: " • " },
-  bg: { title: "Детайли", back: "← Назад", metaSep: " • " },
-  he: { title: "פרטים", back: "← חזרה", metaSep: " • " },
-};
+const detailCard = document.getElementById("detailCard");
+const btnBack = document.getElementById("btnBack");
 
-const TYPE_TX = {
-  en: { apartment: "Apartment", house: "House" },
-  ru: { apartment: "Квартира", house: "Дом" },
-  bg: { apartment: "Апартамент", house: "Къща" },
-  he: { apartment: "דירה", house: "בית" },
-};
-
-function detectLang() {
-  let lang = localStorage.getItem("lang");
-  if (!lang) {
-    const tgLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code || "en";
-    lang = ["ru", "en", "bg", "he"].includes(tgLang) ? tgLang : "en";
-    localStorage.setItem("lang", lang);
-  }
-  return lang;
+function detectLang(){
+  return localStorage.getItem("lang") || "en";
 }
-
 let LANG = detectLang();
 
-function normalizeType(t) {
-  const v = (t || "").toString().trim().toLowerCase();
-  if (v === "apartment") return "apartment";
-  if (v === "house") return "house";
-  return v;
+function t(key){
+  const dict = window.I18N?.[LANG] || window.I18N.en;
+  return dict[key] ?? (window.I18N.en[key] ?? key);
 }
 
-function tType(value) {
-  const key = normalizeType(value);
-  return (TYPE_TX[LANG] && TYPE_TX[LANG][key]) ? TYPE_TX[LANG][key] : value;
+function setRTL(){
+  document.documentElement.setAttribute("dir", window.isRTL(LANG) ? "rtl" : "ltr");
 }
 
-function applyLang() {
-  document.documentElement.dir = (LANG === "he") ? "rtl" : "ltr";
-  document.getElementById("titleDetail").textContent = UI[LANG].title;
-  document.getElementById("btnBack").textContent = UI[LANG].back;
-
-  const langSelect = document.getElementById("langSelect");
-  if (langSelect) langSelect.value = LANG.toUpperCase();
-}
-
-async function apiGet(path) {
+async function apiGet(path){
   const res = await fetch(path, { cache: "no-store" });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }
 
-function getIdFromUrl() {
+function getId(){
   const u = new URL(window.location.href);
   const id = u.searchParams.get("id");
   return id ? Number(id) : null;
 }
 
-function render(item) {
-  document.getElementById("dTitle").textContent = item.title || "";
-  document.getElementById("dMeta").textContent = ${item.city || ""}${UI[LANG].metaSep}${item.district || ""}${UI[LANG].metaSep}${tType(item.type)};
-  document.getElementById("dPrice").textContent = € ${item.price ?? ""};
+function render(item){
+  const city = item.city || "";
+  const district = item.district || "";
+  const typeRaw = item.type || "";
+
+  let typeShown = typeRaw;
+  const typeKey = window.normalizeTypeKey(typeRaw);
+  if (typeKey) typeShown = t(typeKey);
+
+  const title = (item.title && String(item.title).trim()) ? item.title : t("listings");
+  const price = item.price ?? "";
+
+  detailCard.innerHTML = `
+    <div class="cardTitle">${title}</div>
+    <div class="cardMeta">${city}${district ? " • " + district : ""}${typeShown ? " • " + typeShown : ""}</div>
+    <div class="cardPrice">${price !== "" ? € ${price} : ""}</div>
+  `;
 }
 
-async function loadDetail() {
-  const id = getIdFromUrl();
-  if (!id) throw new Error("No id");
-  const item = await apiGet(`${API_BASE}/listings/${id}`);
-  render(item);
-}
+async function init(){
+  setRTL();
+  document.getElementById("detailTitle").textContent = t("catalog");
+  detailCard.textContent = t("loading");
+  btnBack.textContent = (window.isRTL(LANG) ? "→ " : "← ") + t("back");
+  btnBack.addEventListener("click", () => history.back());
 
-function init() {
-  const langSelect = document.getElementById("langSelect");
-  if (langSelect) {
-    langSelect.addEventListener("change", async () => {
-      const v = (langSelect.value || "EN").toLowerCase();
-      LANG = ["ru", "en", "bg", "he"].includes(v) ? v : "en";
-      localStorage.setItem("lang", LANG);
-      applyLang();
-      await loadDetail();
-    });
+  const id = getId();
+  if (!id) {
+    detailCard.textContent = t("notFound");
+    return;
   }
 
-  document.getElementById("btnBack").addEventListener("click", () => {
-    window.location.href = "/";
-  });
-
-  applyLang();
-  loadDetail().catch(() => {
-    // если не нашли — вернём назад
-    window.location.href = "/";
-  });
+  try{
+    const item = await apiGet(`${API_BASE}/listings/${id}`);
+    render(item);
+  }catch(e){
+    detailCard.textContent = t("notFound");
+  }
 }
 
 document.addEventListener("DOMContentLoaded", init);
