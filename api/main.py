@@ -12,10 +12,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session, selectinload
 
-from .settings import settings
-from .db import engine, SessionLocal
-from .models import Base, Property
-from .admin import setup_admin
+from settings import settings
+from db import engine, SessionLocal
+from models import Base, Property
+from admin import setup_admin
 
 # ---------------- Paths ----------------
 BASE_DIR = Path(__file__).resolve().parent
@@ -159,3 +159,4 @@ def get_filters(db: Session = Depends(get_db)):
         "districts": districts,
         "types": types,
     }
+
