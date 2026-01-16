@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Listing</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="h1" id="dTitle">...</div>
+      <div class="langbox">
+        <label id="lblLanguage">Language</label>
+        <select id="langSelect" class="select">
+          <option value="en">EN</option>
+          <option value="ru">RU</option>
+          <option value="bg">BG</option>
+          <option value="he">HE</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card" id="gallery"></div>
+
+    <div class="card">
+      <div class="row"><span id="lblPrice">Price</span>: <b id="dPrice">—</b></div>
+      <div class="row"><span id="lblType">Type</span>: <b id="dType">—</b></div>
+      <div class="row"><span id="lblLocation">Location</span>: <b id="dLocation">—</b></div>
+      <div class="row"><span id="lblArea">Area</span>: <b id="dArea">—</b></div>
+      <div class="row"><span id="lblRooms">Rooms</span>: <b id="dRooms">—</b></div>
+      <div class="row"><span id="lblGeo">Geo</span>: <b id="dGeo">—</b></div>
+      <div class="row"><span id="lblDesc">Description</span>:</div>
+      <div class="desc" id="dDesc">—</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="btnContact">Contact</button>
+      <a class="btn" id="btnBack" href="/">Back</a>
+    </div>
+  </div>
+
+  <script src="/static/detail.js"></script>
+</body>
+</html>
