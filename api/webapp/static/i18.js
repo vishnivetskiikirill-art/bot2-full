@@ -1,6 +1,6 @@
 window.I18N = {
   en: {
-    title: "Catalog",
+    catalog: "Catalog",
     language: "Language",
     city: "City",
     district: "District",
@@ -9,12 +9,15 @@ window.I18N = {
     reset: "Reset",
     show: "Show",
     listings: "Listings",
+    back: "Back",
+    loading: "Loading...",
+    notFound: "Not found",
     any: "—",
-    type_apartment: "Apartment",
-    type_house: "House",
+    apartment: "Apartment",
+    house: "House",
   },
   ru: {
-    title: "Каталог",
+    catalog: "Каталог",
     language: "Язык",
     city: "Город",
     district: "Район",
@@ -23,12 +26,15 @@ window.I18N = {
     reset: "Сброс",
     show: "Показать",
     listings: "Объявления",
+    back: "Назад",
+    loading: "Загрузка...",
+    notFound: "Не найдено",
     any: "—",
-    type_apartment: "Квартира",
-    type_house: "Дом",
+    apartment: "Квартира",
+    house: "Дом",
   },
   bg: {
-    title: "Каталог",
+    catalog: "Каталог",
     language: "Език",
     city: "Град",
     district: "Район",
@@ -37,33 +43,38 @@ window.I18N = {
     reset: "Нулиране",
     show: "Покажи",
     listings: "Обяви",
+    back: "Назад",
+    loading: "Зареждане...",
+    notFound: "Няма резултати",
     any: "—",
-    type_apartment: "Апартамент",
-    type_house: "Къща",
+    apartment: "Апартамент",
+    house: "Къща",
   },
   he: {
-    title: "קטלוג",
+    catalog: "קטלוג",
     language: "שפה",
     city: "עיר",
     district: "אזור",
     type: "סוג",
-    maxPrice: "מחיר מקס' (€)",
+    maxPrice: "מחיר מקס׳ (€)",
     reset: "איפוס",
     show: "הצג",
     listings: "מודעות",
+    back: "חזרה",
+    loading: "טוען...",
+    notFound: "לא נמצא",
     any: "—",
-    type_apartment: "דירה",
-    type_house: "בית",
+    apartment: "דירה",
+    house: "בית",
   },
 };
 
-window.normalizeTypeKey = function(type) {
-  const t = String(type || "").toLowerCase();
-  if (t.includes("apart")) return "type_apartment";
-  if (t.includes("house")) return "type_house";
-  return null;
-};
+window.isRTL = (lang) => lang === "he";
 
-window.isRTL = function(lang){
-  return lang === "he";
+window.normalizeTypeKey = (raw) => {
+  if (!raw) return null;
+  const v = String(raw).trim().toLowerCase();
+  if (v === "apartment" || v === "flat") return "apartment";
+  if (v === "house" || v === "villa") return "house";
+  return null;
 };
