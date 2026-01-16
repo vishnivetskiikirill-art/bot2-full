@@ -1,105 +1,120 @@
-from __future__ import annotations
-
-import json
-from pathlib import Path
-from typing import Any, Optional
-
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+import json
 
-
-BASE_DIR = Path(__file__).resolve().parent
-WEBAPP_DIR = BASE_DIR / "webapp"
-DATA_PATH = BASE_DIR / "data" / "listings.json"
-
-app = FastAPI(title="Real Estate API")
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # для Telegram Mini App ок
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+BASE_DIR = Path(__file__).resolve().parent
+DATA_FILE = BASE_DIR / "data" / "listings.json"
+WEBAPP_DIR = BASE_DIR / "webapp"
 
-def load_listings() -> list[dict[str, Any]]:
-    if not DATA_PATH.exists():
+SUPPORTED_LANGS = {"en", "ru", "bg", "he"}
+
+# 1) Переводы (можешь расширять)
+CITY_I18N = {
+    "Limassol": {"en": "Limassol", "ru": "Лимассол", "bg": "Лимасол", "he": "לימסול"},
+    "Paphos":   {"en": "Paphos",   "ru": "Пафос",    "bg": "Пафос",   "he": "פאפוס"},
+}
+
+DISTRICT_I18N = {
+    "Germasogeia": {"en": "Germasogeia", "ru": "Гермасойя", "bg": "Гермасоя", "he": "גרמסוג'יה"},
+    "Kato Paphos": {"en": "Kato Paphos", "ru": "Като Пафос", "bg": "Като Пафос", "he": "קאפו פאפוס"},
+}
+
+TYPE_I18N = {
+    "Apartment": {"en": "Apartment", "ru": "Квартира", "bg": "Апартамент", "he": "דירה"},
+    "House":     {"en": "House",     "ru": "Дом",      "bg": "Къща",       "he": "בית"},
+}
+
+# Если title/description тоже хочешь переводить — добавишь как словарь по id.
+# Пока оставим title как есть (или можешь сделать TITLE_I18N по id).
+
+def get_lang(lang: str | None) -> str:
+    if not lang:
+        return "en"
+    lang = lang.lower()
+    return lang if lang in SUPPORTED_LANGS else "en"
+
+def t(mapping: dict, key: str, lang: str) -> str:
+    if not key:
+        return key
+    return mapping.get(key, {}).get(lang) or mapping.get(key, {}).get("en") or key
+
+def load_listings() -> list[dict]:
+    if not DATA_FILE.exists():
         return []
-    with DATA_PATH.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-    # ожидаем список объектов
-    return data if isinstance(data, list) else []
+    return json.loads(DATA_FILE.read_text(encoding="utf-8"))
 
-
-def normalize(s: Any) -> str:
-    return str(s).strip()
-
-
-@app.get("/api/status")
-def status():
+@app.get("/")
+def root():
     return {"status": "ok"}
 
-
-@app.get("/", include_in_schema=False)
-def root():
-    # чтобы при открытии домена сразу открывался миниапп
-    return RedirectResponse(url="/webapp/")
-
-
-# Статика миниаппа
-if WEBAPP_DIR.exists():
-    app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
-
-
-@app.get("/webapp/", include_in_schema=False)
-def webapp_index():
-    index_path = WEBAPP_DIR / "index.html"
-    if not index_path.exists():
-        return HTMLResponse("<h3>webapp/index.html not found</h3>", status_code=404)
-    return FileResponse(index_path)
-
-
 @app.get("/api/filters")
-def get_filters():
+def api_filters(lang: str | None = Query(default="en")):
+    lang = get_lang(lang)
     listings = load_listings()
 
-    cities = sorted({normalize(x.get("city")) for x in listings if normalize(x.get("city"))})
-    districts = sorted({normalize(x.get("district")) for x in listings if normalize(x.get("district"))})
-    types = sorted({normalize(x.get("type")) for x in listings if normalize(x.get("type"))})
+    cities = sorted({x.get("city", "") for x in listings if x.get("city")})
+    districts = sorted({x.get("district", "") for x in listings if x.get("district")})
+    types = sorted({x.get("type", "") for x in listings if x.get("type")})
 
-    return {"cities": cities, "districts": districts, "types": types}
-
+    # ВАЖНО: возвращаем value (сырой) + label (перевод)
+    return {
+        "cities": [{"value": c, "label": t(CITY_I18N, c, lang)} for c in cities],
+        "districts": [{"value": d, "label": t(DISTRICT_I18N, d, lang)} for d in districts],
+        "types": [{"value": tp, "label": t(TYPE_I18N, tp, lang)} for tp in types],
+    }
 
 @app.get("/api/listings")
-def get_listings(
-    city: Optional[str] = Query(default=None),
-    district: Optional[str] = Query(default=None),
-    type: Optional[str] = Query(default=None, alias="type"),
-    max_price: Optional[float] = Query(default=None),
-    limit: int = Query(default=200, ge=1, le=1000),
+def api_listings(
+    lang: str | None = Query(default="en"),
+    city: str | None = None,
+    district: str | None = None,
+    type: str | None = None,
+    max_price: int | None = None,
 ):
+    lang = get_lang(lang)
     listings = load_listings()
 
-    if city:
-        city_n = normalize(city).lower()
-        listings = [x for x in listings if normalize(x.get("city")).lower() == city_n]
+    # фильтруем по СЫРЫМ значениям (en), которые хранятся в json
+    def ok(x: dict) -> bool:
+        if city and x.get("city") != city:
+            return False
+        if district and x.get("district") != district:
+            return False
+        if type and x.get("type") != type:
+            return False
+        if max_price is not None:
+            try:
+                if int(x.get("price", 0)) > int(max_price):
+                    return False
+            except Exception:
+                return False
+        return True
 
-    if district:
-        district_n = normalize(district).lower()
-        listings = [x for x in listings if normalize(x.get("district")).lower() == district_n]
+    filtered = [x for x in listings if ok(x)]
 
-    if type:
-        type_n = normalize(type).lower()
-        listings = [x for x in listings if normalize(x.get("type")).lower() == type_n]
+    # добавляем label-поля для отображения на выбранном языке
+    out = []
+    for x in filtered:
+        item = dict(x)
+        item["city_label"] = t(CITY_I18N, item.get("city", ""), lang)
+        item["district_label"] = t(DISTRICT_I18N, item.get("district", ""), lang)
+        item["type_label"] = t(TYPE_I18N, item.get("type", ""), lang)
+        out.append(item)
 
-    if max_price is not None:
-        try:
-            mp = float(max_price)
-            listings = [x for x in listings if float(x.get("price", 0) or 0) <= mp]
-        except Exception:
-            pass
+    return out
 
-    return listings[:limit]
+# отдаём фронт мини-аппа
+if WEBAPP_DIR.exists():
+    app.mount("/webapp", StaticFiles(directory=str(WEBAPP_DIR), html=True), name="webapp")
