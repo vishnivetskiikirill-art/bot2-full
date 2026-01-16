@@ -1,79 +1,85 @@
+import os
 import json
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
 from fastapi import FastAPI, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-
-BASE_DIR = Path(__file__).resolve().parent
-WEBAPP_DIR = BASE_DIR / "webapp"
-DATA_FILE = BASE_DIR / "data" / "listings.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+WEBAPP_DIR = os.path.join(BASE_DIR, "webapp")
+DATA_FILE = os.path.join(BASE_DIR, "data", "listings.json")
 
 app = FastAPI()
 
-# Статика (js/css/картинки)
-app.mount("/static", StaticFiles(directory=str(WEBAPP_DIR / "static")), name="static")
+# static: api/webapp/static/*
+app.mount(
+    "/static",
+    StaticFiles(directory=os.path.join(WEBAPP_DIR, "static")),
+    name="static",
+)
 
-
-def load_listings() -> List[Dict[str, Any]]:
-    if not DATA_FILE.exists():
+def load_listings():
+    if not os.path.exists(DATA_FILE):
         return []
-    return json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    # добавим id, чтобы было куда кликать
+    out = []
+    for i, item in enumerate(data, start=1):
+        x = dict(item)
+        x["id"] = i
+        out.append(x)
+    return out
 
-
-@app.get("/api/status")
-def status():
+@app.get("/api/health")
+def health():
     return {"status": "ok"}
 
+@app.get("/")
+def index_page():
+    return FileResponse(os.path.join(WEBAPP_DIR, "index.html"))
 
-@app.get("/", response_class=HTMLResponse)
-def index():
-    return (WEBAPP_DIR / "index.html").read_text(encoding="utf-8")
-
-
-@app.get("/detail", response_class=HTMLResponse)
+@app.get("/detail")
 def detail_page():
-    return (WEBAPP_DIR / "detail.html").read_text(encoding="utf-8")
-
+    return FileResponse(os.path.join(WEBAPP_DIR, "detail.html"))
 
 @app.get("/api/listings")
-def get_listings(
-    city: Optional[str] = Query(default=None),
-    district: Optional[str] = Query(default=None),
-    type: Optional[str] = Query(default=None),
-    max_price: Optional[int] = Query(default=None),
+def api_listings(
+    city: str | None = None,
+    district: str | None = None,
+    type: str | None = None,
+    max_price: int | None = None,
 ):
     items = load_listings()
 
-    def ok(x: Dict[str, Any]) -> bool:
+    def ok(x):
         if city and x.get("city") != city:
             return False
         if district and x.get("district") != district:
             return False
         if type and x.get("type") != type:
             return False
-        if max_price is not None and int(x.get("price", 0)) > int(max_price):
-            return False
+        if max_price is not None:
+            try:
+                if int(x.get("price", 0)) > int(max_price):
+                    return False
+            except Exception:
+                return False
         return True
 
-    return [x for x in items if ok(x)]
+    return JSONResponse([x for x in items if ok(x)])
 
+@app.get("/api/listings/{listing_id}")
+def api_listing_detail(listing_id: int):
+    items = load_listings()
+    for x in items:
+        if x.get("id") == listing_id:
+            return JSONResponse(x)
+    return JSONResponse({"detail": "Not Found"}, status_code=404)
 
 @app.get("/api/filters")
-def get_filters():
+def api_filters():
     items = load_listings()
     cities = sorted({x.get("city") for x in items if x.get("city")})
     districts = sorted({x.get("district") for x in items if x.get("district")})
     types = sorted({x.get("type") for x in items if x.get("type")})
     return {"cities": cities, "districts": districts, "types": types}
-
-
-@app.get("/api/listings/{listing_id}")
-def get_listing_by_id(listing_id: int):
-    items = load_listings()
-    for x in items:
-        if int(x.get("id", 0)) == listing_id:
-            return x
-    return JSONResponse({"detail": "Not Found"}, status_code=404)
