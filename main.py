@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
@@ -11,5 +11,5 @@ WEBAPP_DIR = BASE_DIR / "api" / "webapp"
 def health():
     return {"status": "ok"}
 
-# ВАЖНО: монтируем webapp КАК КОРЕНЬ
+# раздаём webapp как корень сайта
 app.mount("/", StaticFiles(directory=WEBAPP_DIR, html=True), name="webapp")
