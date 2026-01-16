@@ -8,6 +8,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from fastapi import FastAPI
+import json
+from pathlib import Path
+
+app = FastAPI()
+
+DATA_PATH = Path(__file__).parent / "data" / "listings.json"
+
+@app.get("/api/listings")
+def get_listings():
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
@@ -158,3 +170,4 @@ def get_filters(db: Session = Depends(get_db)):
     types = sorted(normalize_str(x) for x in types if normalize_str(x))
 
     return {"cities": cities, "districts": districts, "types": types}
+
