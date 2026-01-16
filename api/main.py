@@ -1,7 +1,7 @@
 # api/main.py
 import json
 from pathlib import Path
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Depends
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,7 @@ app = FastAPI(title="Bot2 API")
 DATA_PATH = Path(__file__).parent / "data" / "listings.json"
 
 
+# ---------- DB DEP ----------
 def get_db():
     db = SessionLocal()
     try:
@@ -21,6 +22,7 @@ def get_db():
         db.close()
 
 
+# ---------- SEED ----------
 def seed_if_empty(db: Session):
     Base.metadata.create_all(bind=engine)
 
@@ -32,6 +34,7 @@ def seed_if_empty(db: Session):
         return
 
     items = json.loads(DATA_PATH.read_text(encoding="utf-8"))
+
     for it in items:
         db.add(
             Listing(
@@ -53,7 +56,7 @@ def seed_if_empty(db: Session):
 
 
 @app.on_event("startup")
-def on_startup():
+def startup():
     db = SessionLocal()
     try:
         seed_if_empty(db)
@@ -61,6 +64,7 @@ def on_startup():
         db.close()
 
 
+# ---------- ROUTES ----------
 @app.get("/")
 def root():
     return {"status": "ok"}
@@ -72,23 +76,27 @@ def health():
 
 
 @app.get("/api/filters")
-def filters(db: Session = next(get_db()), lang: str = Query("en")):
-    # Фильтры пока НЕ переводим, просто отдаём значения как есть
+def filters(
+    lang: str = Query("en"),
+    db: Session = Depends(get_db),
+):
     rows = db.scalars(select(Listing)).all()
-    cities = sorted({r.city for r in rows if r.city})
-    districts = sorted({r.district for r in rows if r.district})
-    types = sorted({r.type for r in rows if r.type})
-    return {"cities": cities, "districts": districts, "types": types, "lang": lang}
+    return {
+        "cities": sorted({r.city for r in rows}),
+        "districts": sorted({r.district for r in rows}),
+        "types": sorted({r.type for r in rows}),
+        "lang": lang,
+    }
 
 
 @app.get("/api/listings")
 def listings(
-    db: Session = next(get_db()),
     lang: str = Query("en"),
     city: str | None = None,
     district: str | None = None,
     type: str | None = None,
     max_price: float | None = None,
+    db: Session = Depends(get_db),
 ):
     q = select(Listing)
 
@@ -103,7 +111,6 @@ def listings(
 
     rows = db.scalars(q).all()
 
-    # ВАЖНО: title/description отдаем уже локализованными
     return [
         {
             "id": r.id,
@@ -111,12 +118,10 @@ def listings(
             "district": r.district,
             "type": r.type,
             "price": r.price,
-
             "area_m2": r.area_m2,
             "rooms": r.rooms,
             "lat": r.lat,
             "lon": r.lon,
-
             "title": r.title(lang),
             "description": r.description(lang),
         }
