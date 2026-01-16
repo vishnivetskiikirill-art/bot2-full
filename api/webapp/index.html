@@ -1,390 +1,182 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Catalog</title>
-  <style>
-    :root { color-scheme: dark; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#071022; color:#eaf0ff; }
-    .wrap { padding: 18px 14px 24px; max-width: 820px; margin: 0 auto; }
-    h1 { margin: 12px 0 14px; font-size: 44px; font-weight: 800; letter-spacing: .2px; }
-    .topbar { display:flex; align-items:center; justify-content:space-between; gap: 12px; }
-    .lang { display:flex; align-items:center; gap:10px; opacity:.95; }
-    select, input, button {
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
-      color: #eaf0ff;
-      border-radius: 14px;
-      padding: 12px 14px;
-      font-size: 16px;
-      outline: none;
-    }
-    select { width: 100%; }
-    input { width: 100%; }
-    button { cursor: pointer; padding: 10px 14px; border-radius: 999px; }
-    button.primary { background: rgba(255,255,255,.92); color:#071022; border-color: transparent; }
-    button.ghost { background: rgba(255,255,255,.08); }
-    .panel {
-      background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: 22px;
-      padding: 14px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.25);
-    }
-    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .grid-1 { display:grid; grid-template-columns: 1fr; gap: 12px; }
-    .label { font-size: 14px; opacity:.85; margin: 2px 0 6px; }
-    .actions { display:flex; gap: 10px; margin-top: 12px; }
-    .section-title { margin: 18px 0 10px; font-size: 32px; font-weight: 800; display:flex; align-items:center; gap: 10px; }
-    .badge { margin-left:auto; font-size: 14px; opacity:.9; padding: 6px 10px; border-radius: 999px; border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); }
-    .cards { display:grid; gap: 12px; }
-    .card {
-      background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: 22px;
-      padding: 14px 16px;
-    }
-    .card h3 { margin: 0 0 6px; font-size: 20px; }
-    .muted { opacity:.9; }
-    .price { margin-top: 6px; font-weight: 800; font-size: 18px; }
-    .rtl { direction: rtl; text-align: right; }
-    @media (max-width: 640px) {
-      h1 { font-size: 40px; }
-      .grid { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-  <div class="wrap" id="app">
-    <div class="topbar">
-      <h1 id="title">Catalog</h1>
-      <div class="lang">
-        <span id="langLabel">Language</span>
-        <select id="langSelect" style="width:110px">
-          <option value="en">EN</option>
-          <option value="ru">RU</option>
-          <option value="bg">BG</option>
-          <option value="he">HE</option>
-        </select>
-      </div>
-    </div>
+const API_BASE = "/api";
 
-    <div class="panel">
-      <div class="grid">
-        <div>
-          <div class="label" id="cityLabel">City</div>
-          <select id="citySelect"><option value="">—</option></select>
-        </div>
-        <div>
-          <div class="label" id="districtLabel">District</div>
-          <select id="districtSelect"><option value="">—</option></select>
-        </div>
-        <div>
-          <div class="label" id="typeLabel">Type</div>
-          <select id="typeSelect"><option value="">—</option></select>
-        </div>
-        <div>
-          <div class="label" id="priceLabel">Max price (€)</div>
-          <input id="priceInput" type="number" inputmode="numeric" min="0" value="100000" />
-        </div>
-      </div>
-
-      <div class="actions">
-        <button class="ghost" id="resetBtn">Reset</button>
-        <button class="primary" id="showBtn">Show</button>
-      </div>
-    </div>
-
-    <div class="section-title">
-      <span id="listingsTitle">Listings</span>
-      <span class="badge" id="countBadge">0</span>
-    </div>
-    <div class="cards" id="cards"></div>
-  </div>
-
-<script>
-/** =========================
- *  i18n словари (UI + карточки)
- *  ========================= */
-const I18N = {
-  en: {
-    dir: "ltr",
-    title: "Catalog",
-    language: "Language",
-    city: "City",
-    district: "District",
-    type: "Type",
-    maxPrice: "Max price (€)",
-    reset: "Reset",
-    show: "Show",
-    listings: "Listings",
-    noResults: "No results",
-    typeMap: { Apartment: "Apartment", House: "House", Studio: "Studio" },
-  },
-  ru: {
-    dir: "ltr",
-    title: "Каталог",
-    language: "Язык",
-    city: "Город",
-    district: "Район",
-    type: "Тип",
-    maxPrice: "Макс. цена (€)",
-    reset: "Сброс",
-    show: "Показать",
-    listings: "Объявления",
-    noResults: "Ничего не найдено",
-    typeMap: { Apartment: "Квартира", House: "Дом", Studio: "Студия" },
-  },
-  bg: {
-    dir: "ltr",
-    title: "Каталог",
-    language: "Език",
-    city: "Град",
-    district: "Район",
-    type: "Тип",
-    maxPrice: "Макс. цена (€)",
-    reset: "Нулирай",
-    show: "Покажи",
-    listings: "Обяви",
-    noResults: "Няма резултати",
-    typeMap: { Apartment: "Апартамент", House: "Къща", Studio: "Студио" },
-  },
-  he: {
-    dir: "rtl",
-    title: "קטלוג",
-    language: "שפה",
-    city: "עיר",
-    district: "אזור",
-    type: "סוג",
-    maxPrice: "מחיר מקס׳ (€)",
-    reset: "איפוס",
-    show: "הצג",
-    listings: "מודעות",
-    noResults: "לא נמצאו תוצאות",
-    typeMap: { Apartment: "דירה", House: "בית", Studio: "סטודיו" },
-  }
-};
-
-// (опционально) переводы городов/районов — добавляй по мере надобности:
-const CITY_MAP = {
-  ru: { "Limassol":"Лимассол", "Paphos":"Пафос" },
-  bg: { "Limassol":"Лимасол", "Paphos":"Пафос" },
-  he: { "Limassol":"לימסול", "Paphos":"פאפוס" }
-};
-const DISTRICT_MAP = {
-  ru: { "Germasogeia":"Гермасойя", "Kato Paphos":"Като Пафос" },
-  bg: { "Germasogeia":"Гермасойя", "Kato Paphos":"Като Пафос" },
-  he: { "Germasogeia":"גרמסויאה", "Kato Paphos":"קאטו פאפוס" }
-};
-
-function tCity(lang, v){ return (CITY_MAP[lang] && CITY_MAP[lang][v]) ? CITY_MAP[lang][v] : v; }
-function tDistrict(lang, v){ return (DISTRICT_MAP[lang] && DISTRICT_MAP[lang][v]) ? DISTRICT_MAP[lang][v] : v; }
-function tType(lang, v){ return (I18N[lang]?.typeMap?.[v]) ? I18N[lang].typeMap[v] : v; }
-
-/** =========================
- *  API helpers
- *  ========================= */
-const API_BASE = ""; // same domain
-async function apiGet(path) {
-  const r = await fetch(API_BASE + path, { cache: "no-store" });
-  if (!r.ok) throw new Error("API error " + r.status);
-  return await r.json();
-}
-
-/** =========================
- *  State
- *  ========================= */
-let allListings = [];
+let listings = [];
 let currentLang = localStorage.getItem("lang") || "en";
 
-/** =========================
- *  UI elements
- *  ========================= */
-const appEl = document.getElementById("app");
-const langSelect = document.getElementById("langSelect");
-const titleEl = document.getElementById("title");
-const langLabelEl = document.getElementById("langLabel");
-const cityLabelEl = document.getElementById("cityLabel");
-const districtLabelEl = document.getElementById("districtLabel");
-const typeLabelEl = document.getElementById("typeLabel");
-const priceLabelEl = document.getElementById("priceLabel");
-const resetBtn = document.getElementById("resetBtn");
-const showBtn = document.getElementById("showBtn");
-const listingsTitleEl = document.getElementById("listingsTitle");
-const countBadgeEl = document.getElementById("countBadge");
-
-const citySelect = document.getElementById("citySelect");
-const districtSelect = document.getElementById("districtSelect");
-const typeSelect = document.getElementById("typeSelect");
-const priceInput = document.getElementById("priceInput");
-const cardsEl = document.getElementById("cards");
-
-/** =========================
- *  Render helpers
- *  ========================= */
-function applyLanguageUI() {
-  const dict = I18N[currentLang] || I18N.en;
-
-  // RTL/LTR
-  appEl.classList.toggle("rtl", dict.dir === "rtl");
-  document.documentElement.dir = dict.dir;
-
-  titleEl.textContent = dict.title;
-  langLabelEl.textContent = dict.language;
-  cityLabelEl.textContent = dict.city;
-  districtLabelEl.textContent = dict.district;
-  typeLabelEl.textContent = dict.type;
-  priceLabelEl.textContent = dict.maxPrice;
-  resetBtn.textContent = dict.reset;
-  showBtn.textContent = dict.show;
-  listingsTitleEl.textContent = dict.listings;
-
-  // Переводим текущие опции в селектах (отображение)
-  // (значения оставляем оригинальными, чтобы фильтрация работала)
-  for (const opt of citySelect.options) {
-    if (opt.value === "") { opt.textContent = "—"; continue; }
-    opt.textContent = tCity(currentLang, opt.value);
-  }
-  for (const opt of districtSelect.options) {
-    if (opt.value === "") { opt.textContent = "—"; continue; }
-    opt.textContent = tDistrict(currentLang, opt.value);
-  }
-  for (const opt of typeSelect.options) {
-    if (opt.value === "") { opt.textContent = "—"; continue; }
-    opt.textContent = tType(currentLang, opt.value);
-  }
+function t(key) {
+  const dict = window.I18N?.[currentLang] || window.I18N?.en || {};
+  return dict[key] ?? key;
 }
 
-function setSelectOptions(selectEl, values, translateFn) {
-  const keep = selectEl.value;
-  selectEl.innerHTML = `<option value="">—</option>`;
-  values.forEach(v => {
-    const o = document.createElement("option");
-    o.value = v;
-    o.textContent = translateFn ? translateFn(currentLang, v) : v;
-    selectEl.appendChild(o);
+function normalizeType(type) {
+  const v = (type || "").toLowerCase();
+  if (v === "apartment") return t("apartment");
+  if (v === "house") return t("house");
+  // если в будущем будут другие типы — покажем как есть
+  return type;
+}
+
+function applyLangToUI() {
+  // RTL для иврита
+  document.documentElement.dir = currentLang === "he" ? "rtl" : "ltr";
+
+  // Заголовки/лейблы (ищем элементы по id)
+  const elCatalog = document.getElementById("titleCatalog");
+  const elLangLabel = document.getElementById("labelLanguage");
+  const elCity = document.getElementById("labelCity");
+  const elDistrict = document.getElementById("labelDistrict");
+  const elType = document.getElementById("labelType");
+  const elMaxPrice = document.getElementById("labelMaxPrice");
+  const elReset = document.getElementById("btnReset");
+  const elShow = document.getElementById("btnShow");
+  const elListingsTitle = document.getElementById("titleListings");
+
+  if (elCatalog) elCatalog.textContent = t("catalog");
+  if (elLangLabel) elLangLabel.textContent = t("language");
+  if (elCity) elCity.textContent = t("city");
+  if (elDistrict) elDistrict.textContent = t("district");
+  if (elType) elType.textContent = t("type");
+  if (elMaxPrice) elMaxPrice.textContent = t("maxPrice");
+  if (elReset) elReset.textContent = t("reset");
+  if (elShow) elShow.textContent = t("show");
+  if (elListingsTitle) elListingsTitle.textContent = t("listings");
+
+  // плейсхолдеры "—"
+  setSelectPlaceholder("citySelect");
+  setSelectPlaceholder("districtSelect");
+  setSelectPlaceholder("typeSelect");
+
+  // перерисовать карточки (чтобы type переводился)
+  renderListings(getFilteredListings());
+}
+
+function setSelectPlaceholder(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const first = sel.querySelector('option[value=""]');
+  if (first) first.textContent = t("any");
+}
+
+async function fetchJSON(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url} -> ${res.status}`);
+  return res.json();
+}
+
+function getFilteredListings() {
+  const city = document.getElementById("citySelect")?.value || "";
+  const district = document.getElementById("districtSelect")?.value || "";
+  const type = document.getElementById("typeSelect")?.value || "";
+  const maxPrice = Number(document.getElementById("maxPrice")?.value || 0);
+
+  return listings.filter((it) => {
+    if (city && it.city !== city) return false;
+    if (district && it.district !== district) return false;
+    if (type && it.type !== type) return false;
+    if (maxPrice && Number(it.price) > maxPrice) return false;
+    return true;
   });
-  // вернуть выбранное, если существует
-  if ([...selectEl.options].some(o => o.value === keep)) selectEl.value = keep;
 }
 
-function renderCards(listings) {
-  const dict = I18N[currentLang] || I18N.en;
+function renderListings(items) {
+  const box = document.getElementById("listingsBox");
+  const badge = document.getElementById("listingsCount");
+  if (!box) return;
 
-  cardsEl.innerHTML = "";
-  countBadgeEl.textContent = String(listings.length);
+  box.innerHTML = "";
+  if (badge) badge.textContent = String(items.length);
 
-  if (!listings.length) {
-    const empty = document.createElement("div");
-    empty.className = "card";
-    empty.textContent = dict.noResults;
-    cardsEl.appendChild(empty);
-    return;
-  }
-
-  listings.forEach(item => {
+  for (const it of items) {
     const card = document.createElement("div");
     card.className = "card";
 
-    const h3 = document.createElement("h3");
-    // title тоже переводим: если будет title_ru и т.д. — используем их
-    const title =
-      item[`title_${currentLang}`] ||
-      item.title ||
-      "";
-    h3.textContent = title;
+    const title = document.createElement("div");
+    title.className = "cardTitle";
+    title.textContent = it.title || "";
 
     const meta = document.createElement("div");
-    meta.className = "muted";
-
-    const city = item.city || "";
-    const district = item.district || "";
-    const type = item.type || "";
-
-    meta.textContent = `${tCity(currentLang, city)} • ${tDistrict(currentLang, district)} • ${tType(currentLang, type)}`;
+    meta.className = "cardMeta";
+    meta.textContent = `${it.city} • ${it.district} • ${normalizeType(it.type)}`;
 
     const price = document.createElement("div");
-    price.className = "price";
-    const p = Number(item.price || 0);
-    price.textContent = `€ ${p.toLocaleString(currentLang === "ru" ? "ru-RU" : currentLang === "bg" ? "bg-BG" : currentLang === "he" ? "he-IL" : "en-US")}`;
+    price.className = "cardPrice";
+    price.textContent = `€ ${it.price}`;
 
-    card.appendChild(h3);
+    card.appendChild(title);
     card.appendChild(meta);
     card.appendChild(price);
-    cardsEl.appendChild(card);
-  });
+
+    box.appendChild(card);
+  }
 }
 
-function applyFilters() {
-  const city = citySelect.value;
-  const district = districtSelect.value;
-  const type = typeSelect.value;
-  const maxPrice = Number(priceInput.value || 0);
-
-  const filtered = allListings.filter(x => {
-    if (city && x.city !== city) return false;
-    if (district && x.district !== district) return false;
-    if (type && x.type !== type) return false;
-    if (maxPrice && Number(x.price || 0) > maxPrice) return false;
-    return true;
-  });
-
-  renderCards(filtered);
-}
-
-/** =========================
- *  Init
- *  ========================= */
 async function init() {
-  langSelect.value = currentLang;
+  // language select
+  const langSelect = document.getElementById("langSelect");
+  if (langSelect) {
+    langSelect.value = currentLang;
+    langSelect.addEventListener("change", () => {
+      currentLang = langSelect.value;
+      localStorage.setItem("lang", currentLang);
+      applyLangToUI();
+    });
+  }
 
-  // грузим фильтры
-  const filters = await apiGet("/api/filters");
-  setSelectOptions(citySelect, filters.cities || [], tCity);
-  setSelectOptions(districtSelect, filters.districts || [], tDistrict);
-  setSelectOptions(typeSelect, filters.types || [], (lang, v) => tType(lang, v));
+  // load data
+  [listings] = await Promise.all([
+    fetchJSON(`${API_BASE}/listings`),
+  ]);
 
-  // грузим листинги
-  allListings = await apiGet("/api/listings");
+  // populate filters
+  const filters = await fetchJSON(`${API_BASE}/filters`);
 
-  applyLanguageUI();
-  applyFilters();
+  fillSelect("citySelect", filters.cities);
+  fillSelect("districtSelect", filters.districts);
+  fillSelect("typeSelect", filters.types);
+
+  // buttons
+  const btnReset = document.getElementById("btnReset");
+  const btnShow = document.getElementById("btnShow");
+
+  if (btnReset) {
+    btnReset.addEventListener("click", () => {
+      document.getElementById("citySelect").value = "";
+      document.getElementById("districtSelect").value = "";
+      document.getElementById("typeSelect").value = "";
+      document.getElementById("maxPrice").value = "100000";
+      renderListings(getFilteredListings());
+    });
+  }
+
+  if (btnShow) {
+    btnShow.addEventListener("click", () => {
+      renderListings(getFilteredListings());
+    });
+  }
+
+  // apply language + initial render
+  applyLangToUI();
+  renderListings(getFilteredListings());
 }
 
-langSelect.addEventListener("change", () => {
-  currentLang = langSelect.value;
-  localStorage.setItem("lang", currentLang);
+function fillSelect(selectId, values) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
 
-  applyLanguageUI();
-  // самое важное: перерисовка карточек после смены языка
-  applyFilters();
-});
+  sel.innerHTML = "";
 
-resetBtn.addEventListener("click", () => {
-  citySelect.value = "";
-  districtSelect.value = "";
-  typeSelect.value = "";
-  priceInput.value = 100000;
-  applyFilters();
-});
+  // placeholder
+  const opt0 = document.createElement("option");
+  opt0.value = "";
+  opt0.textContent = t("any");
+  sel.appendChild(opt0);
 
-showBtn.addEventListener("click", () => {
-  applyFilters();
-});
+  for (const v of values) {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  }
+}
 
-// чтобы обновлялось сразу при выборе
-citySelect.addEventListener("change", applyFilters);
-districtSelect.addEventListener("change", applyFilters);
-typeSelect.addEventListener("change", applyFilters);
-priceInput.addEventListener("input", () => {
-  // не дергаем слишком часто — но тут ок
-  applyFilters();
-});
-
-init().catch(err => {
-  document.body.innerHTML = `<pre style="padding:16px;color:#fff;background:#000;">${err.stack || err}</pre>`;
-});
-</script>
-</body>
-</html>
+document.addEventListener("DOMContentLoaded", init);
