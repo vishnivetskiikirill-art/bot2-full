@@ -206,4 +206,16 @@ window.addEventListener("load", () => {
     btn.onclick = () => (window.location.href = "/admin");
   }
 });
+window.addEventListener("load", () => {
+  const btn = document.getElementById("adminBtn");
+  if (!btn) return;
+
+  // тест: показать кнопку ВСЕГДА
+  btn.style.display = "inline-block";
+  btn.textContent = "Admin";
+
+  btn.onclick = () => {
+    window.location.href = "/admin";
+  };
+});
 
