@@ -188,20 +188,20 @@ async function init(){
 }
 
 document.addEventListener("DOMContentLoaded", init);
-const tg = window.Telegram?.WebApp;
-tg?.ready();
+window.addEventListener("load", () => {
+  const tg = window.Telegram?.WebApp;
+  tg?.ready();
 
-const adminBtn = document.getElementById("adminBtn");
+  const btn = document.getElementById("adminBtn");
+  if (!btn) return;
 
-// вставь сюда свой Telegram user_id (можно несколько)
-const ADMIN_IDS = [7837390803];
+  // ВПИШИ СВОЙ ID
+  const ADMIN_IDS = [7837390803];
 
-const uid = tg?.initDataUnsafe?.user?.id;
+  const uid = tg?.initDataUnsafe?.user?.id;
 
-if (uid && ADMIN_IDS.includes(uid)) {
-  adminBtn.style.display = "inline-block";
-  adminBtn.addEventListener("click", () => {
-    window.location.href = "/admin";
-  });
-}
-
+  if (uid && ADMIN_IDS.includes(uid)) {
+    btn.style.display = "inline-block";
+    btn.onclick = () => (window.location.href = "/admin");
+  }
+});
