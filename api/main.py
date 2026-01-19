@@ -91,3 +91,32 @@ def listing_detail(listing_id: int):
         except Exception:
             continue
     raise HTTPException(status_code=404, detail="Listing not found")
+from fastapi import FastAPI, Depends
+from pydantic import BaseModel
+from typing import Optional, List
+from auth_admin import admin_required
+
+app = FastAPI()
+
+class ListingIn(BaseModel):
+    city: str
+    district: Optional[str] = None
+    type: str
+    price: Optional[int] = None
+    currency: str = "EUR"
+
+class ListingOut(ListingIn):
+    id: int
+
+FAKE_DB: list[ListingOut] = []
+
+@app.get("/api/admin/listings", response_model=List[ListingOut])
+def admin_list(_admin_id: int = Depends(admin_required)):
+    return FAKE_DB
+
+@app.post("/api/admin/listings", response_model=ListingOut)
+def admin_create(payload: ListingIn, _admin_id: int = Depends(admin_required)):
+    new_id = (FAKE_DB[-1].id + 1) if FAKE_DB else 1
+    item = ListingOut(id=new_id, **payload.model_dump())
+    FAKE_DB.append(item)
+    return item
