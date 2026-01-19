@@ -156,6 +156,9 @@ class ListingOut(ListingIn):
 def admin_list(_admin_id: int = Depends(admin_required)):
     items = load_listings()
     return [ListingOut(**x) for x in items if isinstance(x, dict)]
+
+
+@app.post("/api/admin/listings", response_model=ListingOut)
 def admin_create(payload: ListingIn, _admin_id: int = Depends(admin_required)):
     items = load_listings()
     item = payload.model_dump()
@@ -187,5 +190,3 @@ def admin_delete(listing_id: int, _admin_id: int = Depends(admin_required)):
 
     save_listings(new_items)
     return {"ok": True, "id": listing_id}
-
-@app.post("/api/admin/listings", response_model=ListingOut)
