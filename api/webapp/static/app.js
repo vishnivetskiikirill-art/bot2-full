@@ -1,4 +1,20 @@
 const tg = window.Telegram?.WebApp;
+tg?.ready();
+
+const adminBtn = document.getElementById("adminBtn");
+
+// вставь сюда свой Telegram user_id (можно несколько)
+const ADMIN_IDS = [/* 123456789 */];
+
+const uid = tg?.initDataUnsafe?.user?.id;
+
+if (uid && ADMIN_IDS.includes(uid)) {
+  adminBtn.style.display = "inline-block";
+  adminBtn.addEventListener("click", () => {
+    window.location.href = "/admin";
+  });
+}
+const tg = window.Telegram?.WebApp;
 if (tg) tg.ready();
 
 const API_BASE = "/api";
@@ -172,3 +188,4 @@ async function init(){
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
