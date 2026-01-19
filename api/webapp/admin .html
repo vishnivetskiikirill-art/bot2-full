@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body style="padding:16px;">
+  <h2>Admin panel</h2>
+  <div id="status">…</div>
+
+  <hr/>
+
+  <button id="reload">Reload</button>
+  <pre id="listings" style="white-space:pre-wrap;"></pre>
+
+  <hr/>
+
+  <h3>Create listing</h3>
+  <input id="city" placeholder="city" />
+  <input id="district" placeholder="district" />
+  <input id="type" placeholder="type" />
+  <input id="price" placeholder="price" />
+  <button id="create">Create</button>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    tg?.ready();
+
+    const initData = tg?.initData || "";
+    const headers = {
+      "X-Tg-Init-Data": initData,
+      "Content-Type": "application/json"
+    };
+
+    const statusEl = document.getElementById("status");
+    const listingsEl = document.getElementById("listings");
+
+    async function load() {
+      const r = await fetch("/api/admin/listings", { headers });
+      const text = await r.text();
+      if (!r.ok) {
+        statusEl.textContent = "Error: " + text;
+        listingsEl.textContent = "";
+        return;
+      }
+      statusEl.textContent = "OK";
+      listingsEl.textContent = text;
+    }
+
+    async function create() {
+      const payload = {
+        city: document.getElementById("city").value.trim(),
+        district: document.getElementById("district").value.trim() || null,
+        type: document.getElementById("type").value.trim(),
+        price: document.getElementById("price").value ? parseInt(document.getElementById("price").value, 10) : null,
+        currency: "EUR"
+      };
+
+      const r = await fetch("/api/admin/listings", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload)
+      });
+      const text = await r.text();
+      if (!r.ok) {
+        statusEl.textContent = "Create error: " + text;
+        return;
+      }
+      statusEl.textContent = "Created";
+      await load();
+    }
+
+    document.getElementById("reload").onclick = load;
+    document.getElementById("create").onclick = create;
+
+    load();
+  </script>
+</body>
+</html>
