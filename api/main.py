@@ -30,7 +30,9 @@ def index():
 @app.get("/detail.html")
 def detail_page():
     return FileResponse(str(WEBAPP_DIR / "detail.html"))
-
+@app.get("/admin")
+def admin_page():
+    return FileResponse(str(WEBAPP_DIR / "admin.html"))
 
 # --- Data helpers ---
 def load_listings() -> list[dict]:
@@ -190,3 +192,4 @@ def admin_delete(listing_id: int, _admin_id: int = Depends(admin_required)):
 
     save_listings(new_items)
     return {"ok": True, "id": listing_id}
+
