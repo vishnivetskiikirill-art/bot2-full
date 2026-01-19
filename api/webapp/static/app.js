@@ -1,3 +1,4 @@
+console.log("APP_JS_LOADED_v1");
 const tg = window.Telegram?.WebApp;
 tg?.ready();
 
@@ -205,3 +206,4 @@ window.addEventListener("load", () => {
     btn.onclick = () => (window.location.href = "/admin");
   }
 });
+
