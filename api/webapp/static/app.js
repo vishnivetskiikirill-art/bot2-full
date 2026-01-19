@@ -218,4 +218,23 @@ window.addEventListener("load", () => {
     window.location.href = "/admin";
   };
 });
+window.addEventListener("load", () => {
+  const tg = window.Telegram?.WebApp;
+  tg?.ready();
+
+  const uid = tg?.initDataUnsafe?.user?.id;
+
+  // ТВОЙ telegram user_id
+  const ADMIN_IDS = [7837390803]; // <-- впиши свой
+
+  if (!uid || !ADMIN_IDS.includes(uid)) return;
+
+  const btn = document.createElement("button");
+  btn.textContent = "Admin";
+  btn.style.cssText =
+    "position:fixed; top:40px; left:10px; z-index:99999; padding:8px 12px; border-radius:10px;";
+  btn.onclick = () => (window.location.href = "/admin");
+
+  document.body.appendChild(btn);
+});
 
